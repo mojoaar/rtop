@@ -253,11 +253,12 @@ fn render_detail(
 
 fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     let banner = [
-        " ____ _____ ___  ____ ",
-        "|  _ \\_   _/ _ \\|  _ \\",
-        "| |_) || || | | | |_) |",
-        "|  _ < | || |_| |  __/",
-        "|_| \\_\\|_| \\___/|_|   ",
+        " ██████╗ ████████╗  ██████╗ ██████╗",
+        " ██╔══██╗╚══██╔══╝ ██╔═══██╗██╔══██╗",
+        " ██████╔╝   ██║    ██║   ██║██████╔╝",
+        " ██╔══██╗   ██║    ██║   ██║██╔═══╝",
+        " ██║  ██║   ██║    ╚██████╔╝██║",
+        " ╚═╝  ╚═╝   ╚═╝     ╚═════╝ ╚═╝",
     ];
 
     let keys: [(&str, &str); 11] = [
@@ -279,13 +280,17 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         .map(|(_, a)| 10 + a.len())
         .max()
         .unwrap_or(18)
-        .max(18);
+        .max(18)
+        .max(banner.iter().map(|b| b.chars().count()).max().unwrap_or(0));
 
     let mut lines: Vec<Line> = banner
         .iter()
         .map(|b| {
-            Line::from(format!("{:^width$}", b, width = content_width))
-                .style(Style::default().fg(theme.colors.accent))
+            Line::from(format!("{:^width$}", b, width = content_width)).style(
+                Style::default()
+                    .fg(theme.colors.accent)
+                    .add_modifier(Modifier::BOLD),
+            )
         })
         .collect();
     lines.push(Line::from(""));
