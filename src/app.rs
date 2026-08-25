@@ -3,6 +3,7 @@ use crate::data::{self, snapshot::Snapshot};
 use crate::event::{poll_action, Action};
 use crate::theme;
 use crate::ui;
+use crate::ui::widgets::processes::{self, SortKey};
 use anyhow::Result;
 
 pub struct App {
@@ -10,6 +11,8 @@ pub struct App {
     theme: theme::Theme,
     themes: Vec<theme::Theme>,
     theme_index: usize,
+    sort_key: SortKey,
+    selected: Option<usize>,
 }
 
 impl App {
@@ -20,7 +23,14 @@ impl App {
             .position(|t| t.name == config.theme.flavor)
             .unwrap_or(0);
         let theme = themes.get(index).cloned().unwrap();
-        Self { snapshot: Snapshot::default(), theme, themes, theme_index: index }
+        Self {
+            snapshot: Snapshot::default(),
+            theme,
+            themes,
+            theme_index: index,
+            sort_key: SortKey::Cpu,
+            selected: None,
+        }
     }
 
     fn cycle_theme(&mut self) {
@@ -43,13 +53,47 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
     let mut app = App::new(config);
 
     loop {
-        terminal.draw(|frame| ui::render(frame, &app.snapshot, &app.theme))?;
+        terminal.draw(|frame| ui::render(frame, &app.snapshot, &app.theme, app.selected))?;
         match poll_action(std::time::Duration::from_millis(50))? {
             Action::Quit => break,
             Action::NextTheme => app.cycle_theme(),
+            Action::SortBy(key) => {
+                app.sort_key = key;
+                processes::sort(&mut app.snapshot.processes, app.sort_key);
+            }
+            Action::MoveUp => {
+                let len = app.snapshot.processes.len();
+                if len == 0 {
+                    app.selected = None;
+                } else {
+                    app.selected = Some(match app.selected {
+                        Some(i) if i > 0 => i - 1,
+                        _ => 0,
+                    });
+                }
+            }
+            Action::MoveDown => {
+                let len = app.snapshot.processes.len();
+                if len == 0 {
+                    app.selected = None;
+                } else {
+                    app.selected = Some(match app.selected {
+                        Some(i) if i + 1 < len => i + 1,
+                        None => 0,
+                        _ => len - 1,
+                    });
+                }
+            }
+            Action::Kill => {}
             Action::Tick => {
                 while let Ok(snap) = rx.try_recv() {
                     app.snapshot = snap;
+                }
+                processes::sort(&mut app.snapshot.processes, app.sort_key);
+                if let Some(i) = app.selected {
+                    if i >= app.snapshot.processes.len() {
+                        app.selected = None;
+                    }
                 }
             }
             Action::None => {}

@@ -1,23 +1,24 @@
-mod widgets;
+pub mod widgets;
 
 use crate::data::snapshot::Snapshot;
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::Frame;
 
-pub fn render(frame: &mut Frame, snapshot: &Snapshot, theme: &Theme) {
+pub fn render(frame: &mut Frame, snapshot: &Snapshot, theme: &Theme, selected: Option<usize>) {
     let area = frame.area();
     let bg = ratatui::widgets::Block::default()
         .style(ratatui::style::Style::default().bg(theme.colors.bg).fg(theme.colors.fg));
     frame.render_widget(bg, area);
 
-    let [cpu_area, mem_area, gpu_area, net_area, disk_area, sensors_area] = Layout::vertical([
+    let [cpu_area, mem_area, gpu_area, net_area, disk_area, sensors_area, proc_area] = Layout::vertical([
         Constraint::Length(5),
         Constraint::Length(3),
         Constraint::Length(4),
         Constraint::Min(3),
         Constraint::Min(3),
         Constraint::Length(6),
+        Constraint::Min(10),
     ])
     .areas(area);
 
@@ -34,6 +35,7 @@ pub fn render(frame: &mut Frame, snapshot: &Snapshot, theme: &Theme) {
         &snapshot.fans,
         theme,
     );
+    widgets::processes::render(frame, proc_area, &snapshot.processes, selected, theme);
 }
 
 #[cfg(test)]
@@ -52,7 +54,7 @@ mod tests {
         let backend = TestBackend::new(100, 30);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
-            .draw(|f| render(f, &Snapshot::default(), &theme()))
+            .draw(|f| render(f, &Snapshot::default(), &theme(), None))
             .unwrap();
     }
 
@@ -72,7 +74,7 @@ mod tests {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
-            .draw(|f| render(f, &snap, &theme()))
+            .draw(|f| render(f, &snap, &theme(), None))
             .unwrap();
         let buffer = terminal.backend().buffer().clone();
         let text: String = buffer
