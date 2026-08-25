@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Build macOS binaries and publish release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Build (aarch64)
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Build (x86_64)
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Package binaries
+        run: |
+          mkdir -p dist
+          for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            tar -czf "dist/rtop-${GITHUB_REF_NAME}-${t}.tar.gz" -C "target/${t}/release" rtop
+          done
+
+      - name: Extract release notes
+        run: |
+          hdr="## [${GITHUB_REF_NAME#v}]"
+          awk -v h="$hdr" '
+            index($0, h) == 1 { on = 1 }
+            on && $0 ~ /^## \[/ && index($0, h) != 1 { exit }
+            on { print }
+          ' CHANGELOG.md > release_notes.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: dist/*

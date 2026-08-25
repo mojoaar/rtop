@@ -25,9 +25,31 @@ with [Catppuccin].
 
 ## Install
 
+### From source
+
 ```sh
 cargo install --path .
 ```
+
+### Prebuilt binaries (macOS)
+
+Prebuilt binaries for Apple Silicon (`aarch64-apple-darwin`) and Intel
+(`x86_64-apple-darwin`) are attached to each [GitHub release]. Download the
+tarball for your architecture, extract it, and put `rtop` on your `PATH`:
+
+```sh
+tar -xzf rtop-v0.6.0-aarch64-apple-darwin.tar.gz
+sudo mv rtop /usr/local/bin/
+```
+
+The binaries are unsigned, so macOS Gatekeeper may quarantine them on first
+launch. If you see a "cannot be opened" warning, clear the quarantine flag:
+
+```sh
+xattr -d com.apple.quarantine /usr/local/bin/rtop
+```
+
+[GitHub release]: https://github.com/mojoaar/rtop/releases
 
 ## Usage
 
