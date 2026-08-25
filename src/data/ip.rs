@@ -36,8 +36,11 @@ pub fn private_ip() -> Option<String> {
 }
 
 pub fn fetch_wan(url: &str) -> Option<String> {
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return None;
+    }
     let out = std::process::Command::new("curl")
-        .args(["-s", "--max-time", "5", url])
+        .args(["-s", "--max-time", "5", "--", url])
         .output()
         .ok()?;
     if !out.status.success() {
@@ -116,5 +119,12 @@ mod tests {
         assert_eq!(clean_ip("   "), None);
         assert_eq!(clean_ip("\"\""), None);
         assert_eq!(clean_ip("\n"), None);
+    }
+
+    #[test]
+    fn fetch_wan_rejects_non_http_urls() {
+        assert_eq!(fetch_wan("file:///etc/passwd"), None);
+        assert_eq!(fetch_wan("-o /etc/passwd"), None);
+        assert_eq!(fetch_wan(""), None);
     }
 }

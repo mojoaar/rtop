@@ -542,7 +542,7 @@ fn centered_rect(w: u16, h: u16, area: Rect) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::snapshot::{CpuSnapshot, MemorySnapshot};
+    use crate::data::snapshot::{CpuSnapshot, MemorySnapshot, ProcessInfo};
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
@@ -590,6 +590,49 @@ mod tests {
         );
     }
 
+    fn draw_list(
+        frame: &mut Frame,
+        snap: &Snapshot,
+        t: &Theme,
+        history: &History,
+        processes: &[ProcessInfo],
+        fullscreen: bool,
+    ) {
+        let mut proc_rect = Rect::default();
+        let proc_history = std::collections::HashMap::new();
+        render(
+            frame,
+            snap,
+            t,
+            None,
+            history,
+            processes,
+            0,
+            "",
+            false,
+            None,
+            false,
+            false,
+            0,
+            1000,
+            false,
+            false,
+            false,
+            fullscreen,
+            false,
+            None,
+            None,
+            false,
+            "",
+            "",
+            &mut proc_rect,
+            processes.len(),
+            SortKey::Cpu,
+            SortDir::Desc,
+            &proc_history,
+        );
+    }
+
     #[test]
     fn renders_without_panicking_on_empty_snapshot() {
         let backend = TestBackend::new(100, 30);
@@ -623,5 +666,58 @@ mod tests {
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("CPU"));
         assert!(text.contains("Memory"));
+    }
+
+    #[test]
+    fn fullscreen_renders_without_panicking() {
+        let snap = Snapshot {
+            processes: vec![ProcessInfo {
+                pid: 1,
+                name: "foo".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let backend = TestBackend::new(120, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| draw_list(f, &snap, &theme(), &history(), &snap.processes, true))
+            .unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("z back"));
+    }
+
+    #[test]
+    fn renders_filtered_list_not_full_snapshot() {
+        let snap = Snapshot {
+            processes: vec![
+                ProcessInfo {
+                    pid: 1,
+                    name: "keepme".into(),
+                    ..Default::default()
+                },
+                ProcessInfo {
+                    pid: 2,
+                    name: "dropme".into(),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        let display = vec![ProcessInfo {
+            pid: 1,
+            name: "keepme".into(),
+            ..Default::default()
+        }];
+        let backend = TestBackend::new(120, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| draw_list(f, &snap, &theme(), &history(), &display, false))
+            .unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("keepme"));
+        assert!(!text.contains("dropme"));
     }
 }

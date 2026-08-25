@@ -548,4 +548,88 @@ mod tests {
         assert_eq!(next_preset(1000), 2000);
         assert_eq!(prev_preset(1000), 500);
     }
+
+    #[test]
+    fn refresh_display_applies_filter_and_sort() {
+        let mut app = App::new(&Config::default());
+        app.snapshot.processes = vec![
+            ProcessInfo {
+                pid: 1,
+                name: "zsh".into(),
+                cpu_usage: 10.0,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 2,
+                name: "firefox".into(),
+                cpu_usage: 50.0,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 3,
+                name: "chrome".into(),
+                cpu_usage: 30.0,
+                ..Default::default()
+            },
+        ];
+        app.filter = "fire".into();
+        app.sort_key = SortKey::Cpu;
+        app.sort_dir = SortDir::Desc;
+        app.refresh_display();
+        assert_eq!(app.display.len(), 1);
+        assert_eq!(app.display[0].name, "firefox");
+    }
+
+    #[test]
+    fn move_up_and_down_clamp_at_bounds() {
+        let mut app = App::new(&Config::default());
+        app.display = vec![
+            ProcessInfo {
+                pid: 1,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 2,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 3,
+                ..Default::default()
+            },
+        ];
+        app.move_down();
+        assert_eq!(app.selected, Some(0));
+        app.move_up();
+        assert_eq!(app.selected, Some(0));
+        app.selected = Some(2);
+        app.move_down();
+        assert_eq!(app.selected, Some(2));
+    }
+
+    #[test]
+    fn click_maps_to_scrolled_index() {
+        let mut app = App::new(&Config::default());
+        app.display = vec![
+            ProcessInfo {
+                pid: 1,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 2,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 3,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 4,
+                ..Default::default()
+            },
+        ];
+        app.proc_rect = Rect::new(0, 0, 80, 20);
+        app.scroll = 1;
+        app.click(40, 3);
+        assert_eq!(app.selected, Some(2));
+    }
 }
