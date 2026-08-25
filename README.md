@@ -1,0 +1,118 @@
+# rtop
+
+A beautiful terminal system monitor in the style of `top` and `bpytop`, written in
+Rust with [ratatui] + [crossterm]. It renders a live dashboard of CPU, memory,
+GPU, network, disk, battery & sensors, and a sortable process table — all themed
+with [Catppuccin].
+
+[ratatui]: https://ratatui.rs
+[crossterm]: https://github.com/crossterm-rs/crossterm
+
+## Features
+
+- Live CPU (global + per-core), memory & swap, GPU, network I/O rates, and disk usage
+- Battery status, temperature sensors, and fan speeds (where available)
+- Sortable process table with selection and process kill
+- Four Catppuccin flavors with runtime theme cycling
+- Config file for theme and refresh interval, overridable via CLI flags
+- Non-blocking data collection on a background thread — a slow sensor never janks the UI
+
+## Install
+
+```sh
+cargo install --path .
+```
+
+## Usage
+
+Run from the repository:
+
+```sh
+cargo run
+```
+
+Or, once installed:
+
+```sh
+rtop
+```
+
+CLI flags override config values:
+
+```sh
+rtop --theme macchiato --interval 500
+```
+
+| Flag          | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `--theme`     | Catppuccin flavor: `latte`, `frappe`, `macchiato`, `mocha` |
+| `--interval`  | Refresh interval in milliseconds               |
+
+## Keybindings
+
+| Key             | Action                          |
+| --------------- | ------------------------------- |
+| `q`             | Quit                            |
+| `t`             | Cycle Catppuccin theme          |
+| `c`             | Sort processes by CPU           |
+| `m`             | Sort processes by memory        |
+| `p`             | Sort processes by PID           |
+| `n`             | Sort processes by name          |
+| `↑` / `↓`       | Move process selection          |
+| `k`             | Kill the selected process       |
+
+## Themes
+
+`rtop` ships with all four Catppuccin flavors:
+
+- `latte`
+- `frappe`
+- `macchiato`
+- `mocha`
+
+Select one at startup with `--theme <flavor>`, or press `t` at any time to cycle
+through them. The chosen flavor is persisted to the config file.
+
+## Config
+
+Settings live in a TOML file at the platform config directory (via the `dirs` crate):
+
+| Platform | Path                                        |
+| -------- | ------------------------------------------- |
+| macOS    | `~/Library/Application Support/rtop/config.toml` |
+| Linux    | `~/.config/rtop/config.toml`                |
+| Windows  | `%APPDATA%\rtop\config.toml`                |
+
+Format:
+
+```toml
+[theme]
+flavor = "mocha"        # latte | frappe | macchiato | mocha
+
+[general]
+interval_ms = 250       # sampling + render tick, in milliseconds
+```
+
+The file is created automatically when you cycle themes (`t`).
+
+## Platform support
+
+| Feature                        | macOS | Linux | Windows |
+| ------------------------------ | :---: | :---: | :-----: |
+| CPU, memory & swap             |  ✓    |  ✓    |   ✓     |
+| Network & disk I/O             |  ✓    |  ✓    |   ✓     |
+| Processes (list/sort/kill)     |  ✓    |  ✓    |   ✓*    |
+| Battery                        |  ✓    |  ✓    |   ✓     |
+| Temperatures                   |  ✓    |  ✓*   |   ✓*    |
+| GPU utilization & memory       |  ✓    |  —    |   —     |
+| Fan speed (SMC)                |  ✓    |  —    |   —     |
+
+`*` — provided by the cross-platform `sysinfo` backend; platform-specific
+behavior may vary.
+
+**macOS** is the reference platform and is fully supported, including GPU
+(IOKit `PerformanceStatistics`) and fan speed (SMC via `smc-lib`).
+
+**Linux** and **Windows** are partially supported: CPU, memory, network, disk,
+and processes work through `sysinfo`, but GPU and fan metrics are macOS-only for
+now and render as `n/a`. Missing sensors degrade gracefully rather than crashing.
