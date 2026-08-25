@@ -13,9 +13,11 @@ with [Catppuccin].
 - Live CPU (global + per-core), memory & swap, GPU, network I/O rates, and disk usage
 - Battery status, temperature sensors, and fan speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
-  details popup, and process kill
+  details popup (with CPU/memory history graphs), and process kill
 - Four Catppuccin flavors with runtime theme cycling and optional transparent background
 - Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average
+- Block-bar usage charts for memory and disk (colored by fullness)
+- In-app settings menu to change refresh rate, theme, and transparency live
 - Config file for theme and refresh interval, overridable via CLI flags
 - Non-blocking data collection on a background thread — a slow sensor never janks the UI
 
@@ -60,6 +62,7 @@ rtop --theme macchiato --interval 500
 | `↑` / `↓`       | Move process selection                  |
 | `k`             | Kill the selected process               |
 | `f`             | Filter processes by name or PID         |
+| `s`             | Open the settings menu                  |
 | `Enter`         | Show details for the selected process   |
 | `?`             | Show the help popup                     |
 | `Esc`           | Close popup / cancel filter             |
@@ -80,6 +83,20 @@ to apply, `Esc` to cancel, `Backspace` to delete.
 
 Select one at startup with `--theme <flavor>`, or press `t` at any time to cycle
 through them. The chosen flavor is persisted to the config file.
+
+## Settings menu
+
+Press `s` to open the in-app settings menu. Use `↑`/`↓` to pick a row and
+`←`/`→` to change its value; `Esc` closes it. Changes apply immediately and
+are persisted to the config file:
+
+| Setting     | Values                                            |
+| ----------- | ------------------------------------------------- |
+| Refresh     | `100`, `250`, `500`, `1000`, `2000`, `5000` ms    |
+| Theme       | `latte`, `frappe`, `macchiato`, `mocha`           |
+| Transparent | `on` / `off` (terminal background vs Catppuccin)  |
+
+The active refresh rate is shown in the footer next to the clock and uptime.
 
 ## Config
 

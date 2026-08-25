@@ -14,32 +14,33 @@ pub trait MetricsProvider {
 
 pub enum Command {
     Kill(u32),
+    SetInterval(u64),
 }
 
 pub fn build_provider() -> Box<dyn MetricsProvider + Send> {
     Box::new(sysinfo_impl::SysinfoProvider::new())
 }
 
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::Duration;
 
 pub fn spawn_sampler(
     mut provider: Box<dyn MetricsProvider + Send>,
-    interval: Duration,
+    mut interval: Duration,
     cmd_rx: Receiver<Command>,
 ) -> Receiver<Snapshot> {
     let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
+    std::thread::spawn(move || loop {
         loop {
-            while let Ok(cmd) = cmd_rx.try_recv() {
-                match cmd {
-                    Command::Kill(pid) => provider.kill(pid),
-                }
+            match cmd_rx.recv_timeout(interval) {
+                Ok(Command::Kill(pid)) => provider.kill(pid),
+                Ok(Command::SetInterval(ms)) => interval = Duration::from_millis(ms),
+                Err(RecvTimeoutError::Timeout) => break,
+                Err(RecvTimeoutError::Disconnected) => return,
             }
-            if tx.send(provider.sample()).is_err() {
-                break;
-            }
-            std::thread::sleep(interval);
+        }
+        if tx.send(provider.sample()).is_err() {
+            break;
         }
     });
     rx

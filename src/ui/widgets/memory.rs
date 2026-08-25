@@ -1,9 +1,11 @@
 use crate::data::format::human_bytes;
 use crate::data::snapshot::MemorySnapshot;
 use crate::theme::Theme;
+use crate::ui::widgets::{block_bar, fullness_color};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Gauge, Paragraph};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme) {
@@ -18,73 +20,50 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let mem_ratio = if mem.total == 0 {
+    let ratio = if mem.total == 0 {
         0.0
     } else {
         mem.used as f64 / mem.total as f64
     };
+    let pct = ratio * 100.0;
+    let color = fullness_color(pct, theme);
+    let free = mem.total.saturating_sub(mem.used);
+    let bar = block_bar(ratio, inner.width as usize);
 
-    if mem.swap_total == 0 {
-        let [mem_text, mem_bar] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
-        frame.render_widget(
-            Paragraph::new(format!(
-                "Mem: {} / {} ({:.0}%)",
-                human_bytes(mem.used),
-                human_bytes(mem.total),
-                mem_ratio * 100.0
-            ))
-            .style(Style::default().fg(theme.colors.text)),
-            mem_text,
-        );
-        frame.render_widget(
-            Gauge::default()
-                .gauge_style(Style::default().fg(theme.colors.success))
-                .ratio(mem_ratio.clamp(0.0, 1.0)),
-            mem_bar,
-        );
-        return;
+    let has_swap = mem.swap_total > 0;
+    let constraints: Vec<Constraint> = if has_swap {
+        vec![Constraint::Length(2), Constraint::Length(1), Constraint::Length(1)]
+    } else {
+        vec![Constraint::Length(2), Constraint::Length(1)]
+    };
+    let areas = Layout::vertical(constraints).split(inner);
+
+    frame.render_widget(
+        Paragraph::new(bar.clone()).style(Style::default().fg(color)),
+        areas[0],
+    );
+
+    let values = Line::from(vec![
+        Span::styled("used ", Style::default().fg(theme.colors.muted)),
+        Span::styled(human_bytes(mem.used), Style::default().fg(color)),
+        Span::styled(" · free ", Style::default().fg(theme.colors.muted)),
+        Span::styled(human_bytes(free), Style::default().fg(color)),
+        Span::styled(format!(" · {:.0}%", pct), Style::default().fg(color)),
+    ]);
+    frame.render_widget(Paragraph::new(values), areas[1]);
+
+    if has_swap {
+        let swap_line = Line::from(vec![
+            Span::styled("swap ", Style::default().fg(theme.colors.muted)),
+            Span::styled(
+                format!(
+                    "{} / {}",
+                    human_bytes(mem.swap_used),
+                    human_bytes(mem.swap_total)
+                ),
+                Style::default().fg(theme.colors.warning),
+            ),
+        ]);
+        frame.render_widget(Paragraph::new(swap_line), areas[2]);
     }
-
-    let [mem_text, mem_bar, swap_text, swap_bar] = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(1),
-    ])
-    .areas(inner);
-
-    frame.render_widget(
-        Paragraph::new(format!(
-            "Mem: {} / {} ({:.0}%)",
-            human_bytes(mem.used),
-            human_bytes(mem.total),
-            mem_ratio * 100.0
-        ))
-        .style(Style::default().fg(theme.colors.text)),
-        mem_text,
-    );
-    frame.render_widget(
-        Gauge::default()
-            .gauge_style(Style::default().fg(theme.colors.success))
-            .ratio(mem_ratio.clamp(0.0, 1.0)),
-        mem_bar,
-    );
-
-    let swap_ratio = mem.swap_used as f64 / mem.swap_total as f64;
-    frame.render_widget(
-        Paragraph::new(format!(
-            "Swap: {} / {}",
-            human_bytes(mem.swap_used),
-            human_bytes(mem.swap_total)
-        ))
-        .style(Style::default().fg(theme.colors.text)),
-        swap_text,
-    );
-    frame.render_widget(
-        Gauge::default()
-            .gauge_style(Style::default().fg(theme.colors.warning))
-            .ratio(swap_ratio.clamp(0.0, 1.0)),
-        swap_bar,
-    );
 }

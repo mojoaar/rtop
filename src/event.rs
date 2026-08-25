@@ -11,6 +11,11 @@ pub enum Action {
     Kill,
     OpenDetails,
     ToggleHelp,
+    OpenSettings,
+    SettingsUp,
+    SettingsDown,
+    SettingsDec,
+    SettingsInc,
     FilterToggle,
     FilterChar(char),
     FilterBackspace,
@@ -24,20 +29,34 @@ pub enum Action {
     None,
 }
 
-pub fn poll_action(timeout: std::time::Duration, filtering: bool) -> anyhow::Result<Action> {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Mode {
+    Normal,
+    Filtering,
+    Settings,
+}
+
+pub fn poll_action(timeout: std::time::Duration, mode: Mode) -> anyhow::Result<Action> {
     if event::poll(timeout)? {
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => {
-                if filtering {
-                    match key.code {
+                match mode {
+                    Mode::Filtering => match key.code {
                         KeyCode::Esc => Ok(Action::FilterCancel),
                         KeyCode::Enter => Ok(Action::FilterSubmit),
                         KeyCode::Backspace => Ok(Action::FilterBackspace),
                         KeyCode::Char(c) => Ok(Action::FilterChar(c)),
                         _ => Ok(Action::None),
-                    }
-                } else {
-                    match key.code {
+                    },
+                    Mode::Settings => match key.code {
+                        KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => Ok(Action::Cancel),
+                        KeyCode::Up => Ok(Action::SettingsUp),
+                        KeyCode::Down => Ok(Action::SettingsDown),
+                        KeyCode::Left => Ok(Action::SettingsDec),
+                        KeyCode::Right => Ok(Action::SettingsInc),
+                        _ => Ok(Action::None),
+                    },
+                    Mode::Normal => match key.code {
                         KeyCode::Char('q') => Ok(Action::Quit),
                         KeyCode::Char('t') => Ok(Action::NextTheme),
                         KeyCode::Char('c') => Ok(Action::SortBy(SortKey::Cpu)),
@@ -45,6 +64,7 @@ pub fn poll_action(timeout: std::time::Duration, filtering: bool) -> anyhow::Res
                         KeyCode::Char('p') => Ok(Action::SortBy(SortKey::Pid)),
                         KeyCode::Char('n') => Ok(Action::SortBy(SortKey::Name)),
                         KeyCode::Char('f') => Ok(Action::FilterToggle),
+                        KeyCode::Char('s') => Ok(Action::OpenSettings),
                         KeyCode::Char('?') => Ok(Action::ToggleHelp),
                         KeyCode::Up => Ok(Action::MoveUp),
                         KeyCode::Down => Ok(Action::MoveDown),
@@ -52,7 +72,7 @@ pub fn poll_action(timeout: std::time::Duration, filtering: bool) -> anyhow::Res
                         KeyCode::Enter => Ok(Action::OpenDetails),
                         KeyCode::Esc => Ok(Action::Cancel),
                         _ => Ok(Action::None),
-                    }
+                    },
                 }
             }
             Event::Mouse(mouse) => match mouse.kind {

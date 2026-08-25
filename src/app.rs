@@ -2,13 +2,34 @@ use crate::config::{Config, GeneralConfig, ThemeConfig};
 use crate::data::history::{History, ProcessHistory};
 use crate::data::snapshot::ProcessInfo;
 use crate::data::{self, snapshot::Snapshot, Command};
-use crate::event::{poll_action, Action};
+use crate::event::{poll_action, Action, Mode};
 use crate::theme;
 use crate::ui;
 use crate::ui::widgets::processes::{self, SortDir, SortKey};
 use anyhow::Result;
 use ratatui::layout::Rect;
 use std::collections::HashMap;
+
+const INTERVAL_PRESETS: [u64; 6] = [100, 250, 500, 1000, 2000, 5000];
+
+fn preset_index(ms: u64) -> usize {
+    INTERVAL_PRESETS
+        .iter()
+        .enumerate()
+        .min_by_key(|&(_, &v)| (v as i64 - ms as i64).abs())
+        .map(|(i, _)| i)
+        .unwrap_or(3)
+}
+
+fn next_preset(ms: u64) -> u64 {
+    let i = preset_index(ms);
+    INTERVAL_PRESETS[(i + 1) % INTERVAL_PRESETS.len()]
+}
+
+fn prev_preset(ms: u64) -> u64 {
+    let i = preset_index(ms);
+    INTERVAL_PRESETS[(i + INTERVAL_PRESETS.len() - 1) % INTERVAL_PRESETS.len()]
+}
 
 pub struct App {
     snapshot: Snapshot,
@@ -23,6 +44,8 @@ pub struct App {
     transparent: bool,
     filter: String,
     filtering: bool,
+    show_settings: bool,
+    settings_index: usize,
     display: Vec<ProcessInfo>,
     scroll: usize,
     detail: Option<ProcessInfo>,
@@ -52,6 +75,8 @@ impl App {
             transparent: config.general.transparent,
             filter: String::new(),
             filtering: false,
+            show_settings: false,
+            settings_index: 0,
             display: Vec::new(),
             scroll: 0,
             detail: None,
@@ -64,6 +89,17 @@ impl App {
     fn cycle_theme(&mut self) {
         self.theme_index = (self.theme_index + 1) % self.themes.len();
         self.theme = self.themes[self.theme_index].clone();
+        self.save_config();
+    }
+
+    fn cycle_theme_back(&mut self) {
+        let n = self.themes.len();
+        self.theme_index = (self.theme_index + n - 1) % n;
+        self.theme = self.themes[self.theme_index].clone();
+        self.save_config();
+    }
+
+    fn save_config(&self) {
         let cfg = Config {
             theme: ThemeConfig { flavor: self.theme.name.clone() },
             general: GeneralConfig {
@@ -72,6 +108,54 @@ impl App {
             },
         };
         let _ = cfg.save();
+    }
+
+    fn set_interval(&mut self, ms: u64, cmd_tx: &std::sync::mpsc::Sender<Command>) {
+        self.interval_ms = ms;
+        let _ = cmd_tx.send(Command::SetInterval(ms));
+        self.save_config();
+    }
+
+    fn settings_up(&mut self) {
+        if self.settings_index > 0 {
+            self.settings_index -= 1;
+        }
+    }
+
+    fn settings_down(&mut self) {
+        if self.settings_index < 2 {
+            self.settings_index += 1;
+        }
+    }
+
+    fn settings_dec(&mut self, cmd_tx: &std::sync::mpsc::Sender<Command>) {
+        match self.settings_index {
+            0 => {
+                let ms = prev_preset(self.interval_ms);
+                self.set_interval(ms, cmd_tx);
+            }
+            1 => self.cycle_theme_back(),
+            2 => {
+                self.transparent = !self.transparent;
+                self.save_config();
+            }
+            _ => {}
+        }
+    }
+
+    fn settings_inc(&mut self, cmd_tx: &std::sync::mpsc::Sender<Command>) {
+        match self.settings_index {
+            0 => {
+                let ms = next_preset(self.interval_ms);
+                self.set_interval(ms, cmd_tx);
+            }
+            1 => self.cycle_theme(),
+            2 => {
+                self.transparent = !self.transparent;
+                self.save_config();
+            }
+            _ => {}
+        }
     }
 
     fn refresh_display(&mut self) {
@@ -204,6 +288,9 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 app.filtering,
                 app.detail.as_ref(),
                 app.show_help,
+                app.show_settings,
+                app.settings_index,
+                app.interval_ms,
                 app.transparent,
                 &mut app.proc_rect,
                 app.snapshot.processes.len(),
@@ -213,7 +300,14 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             )
         })?;
 
-        let action = poll_action(std::time::Duration::from_millis(50), app.filtering)?;
+        let mode = if app.filtering {
+            Mode::Filtering
+        } else if app.show_settings {
+            Mode::Settings
+        } else {
+            Mode::Normal
+        };
+        let action = poll_action(std::time::Duration::from_millis(50), mode)?;
 
         if let Action::Tick = action {
             while let Ok(snap) = rx.try_recv() {
@@ -230,6 +324,18 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                     app.show_help = false;
                     app.detail = None;
                 }
+                _ => {}
+            }
+            continue;
+        }
+
+        if app.show_settings {
+            match action {
+                Action::SettingsUp => app.settings_up(),
+                Action::SettingsDown => app.settings_down(),
+                Action::SettingsDec => app.settings_dec(&cmd_tx),
+                Action::SettingsInc => app.settings_inc(&cmd_tx),
+                Action::Cancel | Action::OpenSettings | Action::Quit => app.show_settings = false,
                 _ => {}
             }
             continue;
@@ -288,6 +394,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 }
             }
             Action::ToggleHelp => app.show_help = true,
+            Action::OpenSettings => app.show_settings = true,
             Action::FilterToggle => app.filtering = true,
             Action::Click(col, row) => app.click(col, row),
             Action::ScrollUp => app.move_up(),
@@ -297,4 +404,32 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preset_index_finds_nearest() {
+        assert_eq!(preset_index(1000), 3);
+        assert_eq!(preset_index(250), 1);
+        assert_eq!(preset_index(100), 0);
+        assert_eq!(preset_index(5000), 5);
+    }
+
+    #[test]
+    fn preset_index_handles_off_grid() {
+        assert_eq!(preset_index(750), 2);
+        assert_eq!(preset_index(0), 0);
+        assert_eq!(preset_index(999_999), 5);
+    }
+
+    #[test]
+    fn next_prev_preset_wrap() {
+        assert_eq!(next_preset(5000), 100);
+        assert_eq!(prev_preset(100), 5000);
+        assert_eq!(next_preset(1000), 2000);
+        assert_eq!(prev_preset(1000), 500);
+    }
 }

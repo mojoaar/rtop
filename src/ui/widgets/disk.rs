@@ -1,9 +1,11 @@
 use crate::data::format::human_bytes;
 use crate::data::snapshot::DiskUsage;
 use crate::theme::Theme;
+use crate::ui::widgets::{block_bar, fullness_color};
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Gauge, Paragraph};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme) {
@@ -34,31 +36,27 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
             used as f64 / d.total as f64
         };
         let pct = ratio * 100.0;
-        let color: Color = if pct < 60.0 {
-            theme.colors.success
-        } else if pct < 85.0 {
-            theme.colors.warning
-        } else {
-            theme.colors.danger
-        };
-        let [text_area, gauge_area] =
+        let color = fullness_color(pct, theme);
+        let [text_area, bar_area] =
             Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)]).areas(*a);
-        let label = format!(
-            "{}  used {} · free {}  ({:.0}%)",
-            d.mount_point,
-            human_bytes(used),
-            human_bytes(d.available),
-            pct
-        );
+        let label = Line::from(vec![
+            Span::styled(
+                format!("{}  ", d.mount_point),
+                Style::default().fg(theme.colors.muted),
+            ),
+            Span::styled(human_bytes(used), Style::default().fg(color)),
+            Span::styled(" · ", Style::default().fg(theme.colors.muted)),
+            Span::styled(
+                format!("free {}", human_bytes(d.available)),
+                Style::default().fg(color),
+            ),
+            Span::styled(format!("  ({:.0}%)", pct), Style::default().fg(color)),
+        ]);
+        frame.render_widget(Paragraph::new(label), text_area);
         frame.render_widget(
-            Paragraph::new(label).style(Style::default().fg(color)),
-            text_area,
-        );
-        frame.render_widget(
-            Gauge::default()
-                .gauge_style(Style::default().fg(color))
-                .ratio(ratio.clamp(0.0, 1.0)),
-            gauge_area,
+            Paragraph::new(block_bar(ratio, bar_area.width as usize))
+                .style(Style::default().fg(color)),
+            bar_area,
         );
     }
 }

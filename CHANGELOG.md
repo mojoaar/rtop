@@ -15,12 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-core CPU rows with usage bars and percentages.
 - Load average in the CPU panel title and process count in the Processes title.
 - Timezone in the footer clock.
+- In-app settings menu (`s`) to change refresh rate, theme, and transparency
+  live, with the active sample rate shown in the footer.
 
 ### Changed
 - Battery state now shows friendly labels (charging / discharging / full /
   empty / on AC).
 - Swap row is hidden when no swap is configured.
 - Disk usage text moved off the gauge bar for readability.
+- Memory and disk panels now use block-bar usage charts (█/░) colored by
+  fullness, with high-contrast (non-white) labels.
 - Sensors panel trimmed to battery, CPU/GPU temperature, and fans.
 - Help popup ASCII logo is now centered.
 

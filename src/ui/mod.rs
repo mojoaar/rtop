@@ -25,6 +25,9 @@ pub fn render(
     filtering: bool,
     detail: Option<&ProcessInfo>,
     show_help: bool,
+    show_settings: bool,
+    settings_index: usize,
+    interval_ms: u64,
     transparent: bool,
     proc_rect: &mut Rect,
     total: usize,
@@ -94,7 +97,7 @@ pub fn render(
     );
 
     let [keys_area, clock_area] =
-        Layout::horizontal([Constraint::Min(0), Constraint::Length(32)]).areas(help_area);
+        Layout::horizontal([Constraint::Min(0), Constraint::Length(44)]).areas(help_area);
 
     let (footer, footer_style) = if filtering {
         (format!("filter: {filter}|"), Style::default().fg(theme.colors.warning))
@@ -105,7 +108,7 @@ pub fn render(
         )
     } else {
         (
-            "q quit · t theme · c/m/p/n sort · ↑↓ select · k kill · f filter · Enter details · ? help"
+            "q quit · t theme · c/m/p/n sort · ↑↓ select · k kill · f filter · s settings · ? help"
                 .to_string(),
             Style::default().fg(theme.colors.muted),
         )
@@ -116,16 +119,18 @@ pub fn render(
     let tz = now.format("%Z").to_string();
     let clock = if tz.is_empty() {
         format!(
-            "{} · up {}",
+            "{} · up {} · {}ms",
             now.format("%H:%M:%S"),
-            format_duration_secs(snapshot.uptime)
+            format_duration_secs(snapshot.uptime),
+            interval_ms
         )
     } else {
         format!(
-            "{} {} · up {}",
+            "{} {} · up {} · {}ms",
             tz,
             now.format("%H:%M:%S"),
-            format_duration_secs(snapshot.uptime)
+            format_duration_secs(snapshot.uptime),
+            interval_ms
         )
     };
     frame.render_widget(
@@ -140,6 +145,9 @@ pub fn render(
     }
     if show_help {
         render_help(frame, area, theme);
+    }
+    if show_settings {
+        render_settings(frame, area, theme, settings_index, interval_ms, transparent);
     }
 }
 
@@ -232,9 +240,10 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         "|_| \\_\\|_| \\___/|_|   ",
     ];
 
-    let keys: [(&str, &str); 10] = [
+    let keys: [(&str, &str); 11] = [
         ("q", "quit"),
         ("t", "cycle theme"),
+        ("s", "settings"),
         ("c/m/p/n", "sort cpu/mem/pid/name"),
         ("↑ / ↓", "move selection"),
         ("k", "kill selected process"),
@@ -291,6 +300,71 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     );
 }
 
+fn render_settings(
+    frame: &mut Frame,
+    area: Rect,
+    theme: &Theme,
+    index: usize,
+    interval_ms: u64,
+    transparent: bool,
+) {
+    let rows = [
+        ("Refresh", format!("{}ms", interval_ms)),
+        ("Theme", theme.name.clone()),
+        ("Transparent", if transparent { "on".into() } else { "off".into() }),
+    ];
+
+    let mut lines: Vec<Line> = rows
+        .iter()
+        .enumerate()
+        .map(|(i, (label, value))| {
+            let selected = i == index;
+            let fg = if selected {
+                theme.colors.accent
+            } else {
+                theme.colors.text
+            };
+            let value_fg = if selected {
+                theme.colors.accent
+            } else {
+                theme.colors.muted
+            };
+            let mut line = Line::from(vec![
+                ratatui::text::Span::styled(format!("{label:<12}"), Style::default().fg(fg)),
+                ratatui::text::Span::styled(format!("  {value}  "), Style::default().fg(value_fg)),
+            ]);
+            if selected {
+                line = line.style(Style::default().bg(theme.colors.highlight));
+            }
+            line
+        })
+        .collect();
+    lines.push(Line::from(""));
+    lines.push(
+        Line::from("← / → change  ·  ↑ / ↓ select  ·  Esc close")
+            .style(Style::default().fg(theme.colors.muted)),
+    );
+
+    let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
+    let height = lines.len() as u16 + 2;
+    let popup = centered_rect(width, height, area);
+    let block = Block::bordered()
+        .title(" Settings ")
+        .title_style(
+            Style::default()
+                .fg(theme.colors.accent)
+                .add_modifier(Modifier::BOLD),
+        )
+        .border_style(Style::default().fg(theme.colors.accent));
+    frame.render_widget(Clear, popup);
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
+    frame.render_widget(
+        Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
+        inner,
+    );
+}
+
 fn centered_rect(w: u16, h: u16, area: Rect) -> Rect {
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
@@ -332,6 +406,9 @@ mod tests {
             false,
             None,
             false,
+            false,
+            0,
+            1000,
             false,
             &mut proc_rect,
             snap.processes.len(),
