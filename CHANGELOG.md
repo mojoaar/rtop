@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-25
+
+### Security
+- Harden the WAN IP fetch: reject non-http(s) URLs and insert `--` before the
+  URL to prevent curl option injection.
+
+### Added
+- macOS CI workflow (format, clippy, tests).
+- App-routing tests (filter/sort, selection clamping, click mapping) and a
+  regression test asserting the filtered, sorted process list is what renders.
+
+### Changed
+- Bundle render arguments into view structs and clear all clippy lints.
+- Track `Cargo.lock` for reproducible builds.
+
 ## [0.4.0] - 2026-08-25
 
 ### Added
