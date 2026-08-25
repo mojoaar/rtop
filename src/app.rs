@@ -46,11 +46,18 @@ impl App {
     }
 }
 
+struct TermGuard;
+
+impl Drop for TermGuard {
+    fn drop(&mut self) {
+        ratatui::restore();
+    }
+}
+
 pub fn run(config: &Config) -> Result<()> {
     let mut terminal = ratatui::try_init()?;
-    let result = run_inner(&mut terminal, config);
-    ratatui::restore();
-    result
+    let _guard = TermGuard;
+    run_inner(&mut terminal, config)
 }
 
 fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result<()> {

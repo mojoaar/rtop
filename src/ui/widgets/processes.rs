@@ -1,8 +1,7 @@
 use crate::data::snapshot::ProcessInfo;
 use crate::theme::Theme;
 use ratatui::layout::Rect;
-use ratatui::style::{Style, Stylize};
-use ratatui::text::Line;
+use ratatui::style::Style;
 use ratatui::widgets::{Block, Cell, Row, Table};
 use ratatui::Frame;
 
