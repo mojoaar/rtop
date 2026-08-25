@@ -27,7 +27,15 @@ pub fn default_dir(key: SortKey) -> SortDir {
     }
 }
 
-pub fn sort(processes: &mut Vec<ProcessInfo>, key: SortKey, dir: SortDir) {
+pub struct ProcessView {
+    pub selected: Option<usize>,
+    pub scroll: usize,
+    pub total: usize,
+    pub sort_key: SortKey,
+    pub sort_dir: SortDir,
+}
+
+pub fn sort(processes: &mut [ProcessInfo], key: SortKey, dir: SortDir) {
     processes.sort_by(|a, b| {
         let ord = match key {
             SortKey::Cpu => a
@@ -71,13 +79,16 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     processes: &[ProcessInfo],
-    selected: Option<usize>,
-    scroll: usize,
-    total: usize,
-    sort_key: SortKey,
-    sort_dir: SortDir,
+    view: &ProcessView,
     theme: &Theme,
 ) {
+    let ProcessView {
+        selected,
+        scroll,
+        total,
+        sort_key,
+        sort_dir,
+    } = *view;
     let block = Block::bordered()
         .title(format!(" Processes · {} total ", total))
         .title_style(

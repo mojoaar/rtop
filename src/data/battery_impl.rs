@@ -12,8 +12,8 @@ pub fn read_battery() -> Option<BatteryInfo> {
     for b in manager.batteries().ok()? {
         let Ok(battery) = b else { continue };
         any = true;
-        let cap = battery.energy_full().value as f32;
-        let now = battery.energy().value as f32;
+        let cap = battery.energy_full().value;
+        let now = battery.energy().value;
         total_capacity += cap;
         sum_capacity += now;
         state = match battery.state() {

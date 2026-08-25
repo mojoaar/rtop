@@ -37,7 +37,9 @@ impl SysinfoProvider {
         current: u64,
         elapsed: std::time::Duration,
     ) -> f64 {
-        let rate = prev.get(key).map_or(0.0, |p| rate_per_sec(current, *p, elapsed));
+        let rate = prev
+            .get(key)
+            .map_or(0.0, |p| rate_per_sec(current, *p, elapsed));
         prev.insert(key.to_string(), current);
         rate
     }
@@ -59,7 +61,8 @@ impl MetricsProvider for SysinfoProvider {
 
         self.system.refresh_cpu_all();
         self.system.refresh_memory();
-        self.system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+        self.system
+            .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
         let networks = Networks::new_with_refreshed_list();
         let disks = Disks::new_with_refreshed_list();
@@ -91,10 +94,17 @@ impl MetricsProvider for SysinfoProvider {
         let network: Vec<NetRate> = networks
             .iter()
             .map(|(name, data)| {
-                let rx = Self::diff_map(&mut self.prev_net_rx, name, data.total_received(), elapsed);
-                let tx = Self::diff_map(&mut self.prev_net_tx, name, data.total_transmitted(), elapsed);
+                let rx =
+                    Self::diff_map(&mut self.prev_net_rx, name, data.total_received(), elapsed);
+                let tx = Self::diff_map(
+                    &mut self.prev_net_tx,
+                    name,
+                    data.total_transmitted(),
+                    elapsed,
+                );
                 net_total_received = net_total_received.saturating_add(data.total_received());
-                net_total_transmitted = net_total_transmitted.saturating_add(data.total_transmitted());
+                net_total_transmitted =
+                    net_total_transmitted.saturating_add(data.total_transmitted());
                 NetRate {
                     name: name.clone(),
                     rx_bytes_per_sec: rx,
@@ -108,8 +118,18 @@ impl MetricsProvider for SysinfoProvider {
             .map(|d| {
                 let key = d.mount_point().to_string_lossy().to_string();
                 let usage = d.usage();
-                let r = Self::diff_map(&mut self.prev_disk_read, &key, usage.total_read_bytes, elapsed);
-                let w = Self::diff_map(&mut self.prev_disk_write, &key, usage.total_written_bytes, elapsed);
+                let r = Self::diff_map(
+                    &mut self.prev_disk_read,
+                    &key,
+                    usage.total_read_bytes,
+                    elapsed,
+                );
+                let w = Self::diff_map(
+                    &mut self.prev_disk_write,
+                    &key,
+                    usage.total_written_bytes,
+                    elapsed,
+                );
                 DiskUsage {
                     mount_point: key,
                     name: d.name().to_string_lossy().to_string(),
@@ -133,10 +153,9 @@ impl MetricsProvider for SysinfoProvider {
                     .map(|u| u.name().to_string())
                     .unwrap_or_default();
                 #[cfg(target_os = "macos")]
-                let (cpu_time, threads) =
-                    crate::platform::cpu_time::process_stats(pid.as_u32())
-                        .map(|s| (s.cpu_time_secs, (s.threads > 0).then_some(s.threads)))
-                        .unwrap_or_else(|| (p.run_time(), p.tasks().map(|t| t.len())));
+                let (cpu_time, threads) = crate::platform::cpu_time::process_stats(pid.as_u32())
+                    .map(|s| (s.cpu_time_secs, (s.threads > 0).then_some(s.threads)))
+                    .unwrap_or_else(|| (p.run_time(), p.tasks().map(|t| t.len())));
                 #[cfg(not(target_os = "macos"))]
                 let (cpu_time, threads) = (p.run_time(), p.tasks().map(|t| t.len()));
                 ProcessInfo {

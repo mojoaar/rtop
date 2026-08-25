@@ -6,19 +6,28 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Paragraph, Sparkline};
 use ratatui::Frame;
 
-pub fn render(
-    frame: &mut Frame,
-    area: Rect,
-    network: &[NetRate],
-    rx_spark: &[u64],
-    tx_spark: &[u64],
-    total_received: u64,
-    total_transmitted: u64,
-    private_ip: Option<&str>,
-    wan_ip: Option<&str>,
-    wan_enabled: bool,
-    theme: &Theme,
-) {
+pub struct NetworkView<'a> {
+    pub network: &'a [NetRate],
+    pub rx_spark: &'a [u64],
+    pub tx_spark: &'a [u64],
+    pub total_received: u64,
+    pub total_transmitted: u64,
+    pub private_ip: Option<&'a str>,
+    pub wan_ip: Option<&'a str>,
+    pub wan_enabled: bool,
+}
+
+pub fn render(frame: &mut Frame, area: Rect, view: &NetworkView<'_>, theme: &Theme) {
+    let NetworkView {
+        network,
+        rx_spark,
+        tx_spark,
+        total_received,
+        total_transmitted,
+        private_ip,
+        wan_ip,
+        wan_enabled,
+    } = *view;
     let private = private_ip.unwrap_or("n/a");
     let title = if wan_enabled {
         let wan = wan_ip.unwrap_or("n/a");

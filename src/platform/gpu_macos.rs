@@ -4,8 +4,8 @@ use core_foundation::base::{CFAllocatorRef, CFRelease, CFTypeRef};
 use core_foundation::dictionary::{
     CFDictionaryGetValueIfPresent, CFDictionaryRef, CFMutableDictionaryRef,
 };
-use core_foundation::number::{CFNumberGetValue, CFNumberRef, kCFNumberDoubleType};
-use core_foundation::string::{CFStringCreateWithCString, CFStringRef, kCFStringEncodingUTF8};
+use core_foundation::number::{kCFNumberDoubleType, CFNumberGetValue, CFNumberRef};
+use core_foundation::string::{kCFStringEncodingUTF8, CFStringCreateWithCString, CFStringRef};
 use std::os::raw::{c_char, c_void};
 
 #[allow(non_camel_case_types)]
@@ -94,7 +94,7 @@ unsafe fn service_property(class_name: &[u8]) -> Option<CFDictionaryRef> {
 
     let key = CFStringCreateWithCString(
         std::ptr::null(),
-        b"PerformanceStatistics\0".as_ptr() as *const c_char,
+        c"PerformanceStatistics".as_ptr(),
         kCFStringEncodingUTF8,
     );
     if key.is_null() {

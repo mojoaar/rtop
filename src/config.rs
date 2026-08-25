@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub theme: ThemeConfig,
@@ -25,13 +25,12 @@ pub struct GeneralConfig {
     pub wan_url: String,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self { theme: ThemeConfig::default(), general: GeneralConfig::default() }
-    }
-}
 impl Default for ThemeConfig {
-    fn default() -> Self { Self { flavor: "mocha".into() } }
+    fn default() -> Self {
+        Self {
+            flavor: "mocha".into(),
+        }
+    }
 }
 impl Default for GeneralConfig {
     fn default() -> Self {
@@ -61,17 +60,23 @@ impl Config {
     }
     pub fn save(&self) -> anyhow::Result<()> {
         if let Some(p) = Self::config_path() {
-            if let Some(dir) = p.parent() { std::fs::create_dir_all(dir)?; }
+            if let Some(dir) = p.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
             std::fs::write(&p, toml::to_string_pretty(self)?)?;
         }
         Ok(())
     }
     pub fn with_theme(mut self, flavor: Option<String>) -> Self {
-        if let Some(f) = flavor { self.theme.flavor = f; }
+        if let Some(f) = flavor {
+            self.theme.flavor = f;
+        }
         self
     }
     pub fn with_interval(mut self, ms: Option<u64>) -> Self {
-        if let Some(i) = ms { self.general.interval_ms = i; }
+        if let Some(i) = ms {
+            self.general.interval_ms = i;
+        }
         self
     }
 }

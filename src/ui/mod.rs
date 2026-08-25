@@ -59,11 +59,13 @@ pub fn render(
             frame,
             proc_area,
             processes,
-            selected,
-            scroll,
-            total,
-            sort_key,
-            sort_dir,
+            &widgets::processes::ProcessView {
+                selected,
+                scroll,
+                total,
+                sort_key,
+                sort_dir,
+            },
             theme,
         );
         frame.render_widget(
@@ -82,15 +84,17 @@ pub fn render(
                 frame,
                 area,
                 theme,
-                settings_index,
-                interval_ms,
-                transparent,
-                show_time,
-                show_uptime,
-                wan_enabled,
-                settings_editing,
-                wan_url,
-                wan_url_edit,
+                &SettingsView {
+                    index: settings_index,
+                    interval_ms,
+                    transparent,
+                    show_time,
+                    show_uptime,
+                    wan_enabled,
+                    settings_editing,
+                    wan_url,
+                    wan_url_edit,
+                },
             );
         }
         return;
@@ -112,24 +116,39 @@ pub fn render(
     let [mem_area, gpu_area] =
         Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(mem_gpu_area);
     let [disk_area, sensors_area] =
-        Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(disk_sensors_area);
+        Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
+            .areas(disk_sensors_area);
 
     *proc_rect = proc_area;
 
     widgets::cpu::render(frame, cpu_area, &snapshot.cpu, &history.cpu_series(), theme);
-    widgets::memory::render(frame, mem_area, &snapshot.memory, &history.mem_series(), theme);
-    widgets::gpu::render(frame, gpu_area, snapshot.gpu.as_ref(), &history.gpu_series(), theme);
+    widgets::memory::render(
+        frame,
+        mem_area,
+        &snapshot.memory,
+        &history.mem_series(),
+        theme,
+    );
+    widgets::gpu::render(
+        frame,
+        gpu_area,
+        snapshot.gpu.as_ref(),
+        &history.gpu_series(),
+        theme,
+    );
     widgets::network::render(
         frame,
         net_area,
-        &snapshot.network,
-        &history.net_rx_series(),
-        &history.net_tx_series(),
-        snapshot.net_total_received,
-        snapshot.net_total_transmitted,
-        private_ip,
-        wan_ip,
-        wan_enabled,
+        &widgets::network::NetworkView {
+            network: &snapshot.network,
+            rx_spark: &history.net_rx_series(),
+            tx_spark: &history.net_tx_series(),
+            total_received: snapshot.net_total_received,
+            total_transmitted: snapshot.net_total_transmitted,
+            private_ip,
+            wan_ip,
+            wan_enabled,
+        },
         theme,
     );
     widgets::disk::render(frame, disk_area, &snapshot.disks, theme);
@@ -145,11 +164,13 @@ pub fn render(
         frame,
         proc_area,
         processes,
-        selected,
-        scroll,
-        total,
-        sort_key,
-        sort_dir,
+        &widgets::processes::ProcessView {
+            selected,
+            scroll,
+            total,
+            sort_key,
+            sort_dir,
+        },
         theme,
     );
 
@@ -157,7 +178,10 @@ pub fn render(
         Layout::horizontal([Constraint::Min(0), Constraint::Length(44)]).areas(help_area);
 
     let (footer, footer_style) = if filtering {
-        (format!("filter: {filter}|"), Style::default().fg(theme.colors.warning))
+        (
+            format!("filter: {filter}|"),
+            Style::default().fg(theme.colors.warning),
+        )
     } else if !filter.is_empty() {
         (
             format!("filter: {filter}  ·  q quit · Enter details · ? help"),
@@ -205,15 +229,17 @@ pub fn render(
             frame,
             area,
             theme,
-            settings_index,
-            interval_ms,
-            transparent,
-            show_time,
-            show_uptime,
-            wan_enabled,
-            settings_editing,
-            wan_url,
-            wan_url_edit,
+            &SettingsView {
+                index: settings_index,
+                interval_ms,
+                transparent,
+                show_time,
+                show_uptime,
+                wan_enabled,
+                settings_editing,
+                wan_url,
+                wan_url_edit,
+            },
         );
     }
 }
@@ -230,7 +256,11 @@ fn render_detail(
         Line::from(format!("Name: {}", p.name)),
         Line::from(format!("User: {}", p.user)),
         Line::from(format!("CPU: {:.1}%", p.cpu_usage)),
-        Line::from(format!("Memory: {} ({} KB)", human_bytes(p.memory_bytes), p.memory_bytes / 1024)),
+        Line::from(format!(
+            "Memory: {} ({} KB)",
+            human_bytes(p.memory_bytes),
+            p.memory_bytes / 1024
+        )),
         Line::from(format!("CPU time: {}", format_duration_secs(p.cpu_time))),
         Line::from(format!(
             "Threads: {}",
@@ -387,10 +417,7 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     );
 }
 
-fn render_settings(
-    frame: &mut Frame,
-    area: Rect,
-    theme: &Theme,
+struct SettingsView<'a> {
     index: usize,
     interval_ms: u64,
     transparent: bool,
@@ -398,9 +425,22 @@ fn render_settings(
     show_uptime: bool,
     wan_enabled: bool,
     settings_editing: bool,
-    wan_url: &str,
-    wan_url_edit: &str,
-) {
+    wan_url: &'a str,
+    wan_url_edit: &'a str,
+}
+
+fn render_settings(frame: &mut Frame, area: Rect, theme: &Theme, settings: &SettingsView<'_>) {
+    let SettingsView {
+        index,
+        interval_ms,
+        transparent,
+        show_time,
+        show_uptime,
+        wan_enabled,
+        settings_editing,
+        wan_url,
+        wan_url_edit,
+    } = *settings;
     let url_value = if settings_editing {
         format!("{wan_url_edit}|")
     } else {
@@ -409,10 +449,31 @@ fn render_settings(
     let rows = [
         ("Refresh", format!("{}ms", interval_ms)),
         ("Theme", theme.name.clone()),
-        ("Transparent", if transparent { "on".into() } else { "off".into() }),
+        (
+            "Transparent",
+            if transparent {
+                "on".into()
+            } else {
+                "off".into()
+            },
+        ),
         ("Time", if show_time { "on".into() } else { "off".into() }),
-        ("Uptime", if show_uptime { "on".into() } else { "off".into() }),
-        ("WAN IP", if wan_enabled { "on".into() } else { "off".into() }),
+        (
+            "Uptime",
+            if show_uptime {
+                "on".into()
+            } else {
+                "off".into()
+            },
+        ),
+        (
+            "WAN IP",
+            if wan_enabled {
+                "on".into()
+            } else {
+                "off".into()
+            },
+        ),
         ("WAN URL", url_value),
     ];
 
@@ -540,15 +601,17 @@ mod tests {
 
     #[test]
     fn cpu_bar_reflects_usage() {
-        let mut snap = Snapshot::default();
-        snap.cpu = CpuSnapshot {
-            global_usage: 50.0,
-            per_core: vec![50.0, 25.0],
-            ..Default::default()
-        };
-        snap.memory = MemorySnapshot {
-            total: 1024,
-            used: 512,
+        let snap = Snapshot {
+            cpu: CpuSnapshot {
+                global_usage: 50.0,
+                per_core: vec![50.0, 25.0],
+                ..Default::default()
+            },
+            memory: MemorySnapshot {
+                total: 1024,
+                used: 512,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let backend = TestBackend::new(120, 30);
@@ -557,11 +620,7 @@ mod tests {
             .draw(|f| draw(f, &snap, &theme(), &history()))
             .unwrap();
         let buffer = terminal.backend().buffer().clone();
-        let text: String = buffer
-            .content()
-            .iter()
-            .map(|c| c.symbol())
-            .collect();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("CPU"));
         assert!(text.contains("Memory"));
     }

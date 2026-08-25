@@ -18,11 +18,7 @@ pub enum IpCmd {
 }
 
 pub fn clean_ip(raw: &str) -> Option<String> {
-    let s = raw
-        .trim()
-        .trim_matches('"')
-        .trim_matches('\'')
-        .trim();
+    let s = raw.trim().trim_matches('"').trim_matches('\'').trim();
     if s.is_empty() {
         None
     } else {
@@ -57,7 +53,11 @@ pub fn spawn_ip_monitor(config: IpConfig) -> (Sender<IpCmd>, Receiver<IpState>) 
     std::thread::spawn(move || {
         let mut cfg = config;
         let mut private = private_ip();
-        let mut wan = if cfg.enabled { fetch_wan(&cfg.url) } else { None };
+        let mut wan = if cfg.enabled {
+            fetch_wan(&cfg.url)
+        } else {
+            None
+        };
         let _ = state_tx.send(IpState {
             private: private.clone(),
             wan: wan.clone(),
@@ -68,7 +68,11 @@ pub fn spawn_ip_monitor(config: IpConfig) -> (Sender<IpCmd>, Receiver<IpState>) 
                 Ok(IpCmd::Update(new_cfg)) => {
                     cfg = new_cfg;
                     private = private_ip();
-                    wan = if cfg.enabled { fetch_wan(&cfg.url) } else { None };
+                    wan = if cfg.enabled {
+                        fetch_wan(&cfg.url)
+                    } else {
+                        None
+                    };
                     let _ = state_tx.send(IpState {
                         private: private.clone(),
                         wan: wan.clone(),
@@ -76,7 +80,11 @@ pub fn spawn_ip_monitor(config: IpConfig) -> (Sender<IpCmd>, Receiver<IpState>) 
                 }
                 Err(RecvTimeoutError::Timeout) => {
                     private = private_ip();
-                    wan = if cfg.enabled { fetch_wan(&cfg.url) } else { None };
+                    wan = if cfg.enabled {
+                        fetch_wan(&cfg.url)
+                    } else {
+                        None
+                    };
                     let _ = state_tx.send(IpState {
                         private: private.clone(),
                         wan: wan.clone(),

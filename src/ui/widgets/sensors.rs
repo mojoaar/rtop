@@ -71,7 +71,10 @@ pub fn render(
         }
     }
     if components.len() > shown.len() {
-        lines.push(Line::from(format!("+{} more", components.len() - shown.len())));
+        lines.push(Line::from(format!(
+            "+{} more",
+            components.len() - shown.len()
+        )));
     }
     for f in fans {
         lines.push(Line::from(format!("{}: {} RPM", f.label, f.rpm)));
@@ -88,7 +91,10 @@ mod tests {
     use super::*;
 
     fn c(label: &str) -> ComponentInfo {
-        ComponentInfo { label: label.into(), temperature_c: Some(50.0) }
+        ComponentInfo {
+            label: label.into(),
+            temperature_c: Some(50.0),
+        }
     }
 
     #[test]

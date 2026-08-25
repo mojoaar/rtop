@@ -27,11 +27,11 @@ impl FanStats for NullFan {
 }
 
 #[cfg(target_os = "macos")]
-pub mod gpu_macos;
+pub mod cpu_time;
 #[cfg(target_os = "macos")]
 pub mod fan_macos;
 #[cfg(target_os = "macos")]
-pub mod cpu_time;
+pub mod gpu_macos;
 
 pub mod signal;
 

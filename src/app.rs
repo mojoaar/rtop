@@ -129,7 +129,9 @@ impl App {
 
     fn save_config(&self) {
         let cfg = Config {
-            theme: ThemeConfig { flavor: self.theme.name.clone() },
+            theme: ThemeConfig {
+                flavor: self.theme.name.clone(),
+            },
             general: GeneralConfig {
                 interval_ms: self.interval_ms,
                 transparent: self.transparent,
@@ -513,11 +515,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             Action::Click(col, row) => app.click(col, row),
             Action::ScrollUp => app.move_up(),
             Action::ScrollDown => app.move_down(),
-            Action::Cancel => {
-                if app.fullscreen {
-                    app.fullscreen = false;
-                }
-            }
+            Action::Cancel => app.fullscreen = false,
             _ => {}
         }
     }

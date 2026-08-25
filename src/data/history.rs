@@ -9,7 +9,11 @@ pub struct RingBuffer<T> {
 
 impl<T: Clone> RingBuffer<T> {
     pub fn new(cap: usize) -> Self {
-        Self { buf: Vec::with_capacity(cap), head: 0, cap: cap.max(1) }
+        Self {
+            buf: Vec::with_capacity(cap),
+            head: 0,
+            cap: cap.max(1),
+        }
     }
 
     pub fn push(&mut self, value: T) {
@@ -22,9 +26,13 @@ impl<T: Clone> RingBuffer<T> {
     }
 
     #[allow(dead_code)]
-    pub fn len(&self) -> usize { self.buf.len() }
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
     #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool { self.buf.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.buf.is_empty()
+    }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         let n = self.buf.len();
@@ -33,7 +41,9 @@ impl<T: Clone> RingBuffer<T> {
 
     #[allow(dead_code)]
     pub fn latest(&self) -> Option<&T> {
-        if self.buf.is_empty() { return None; }
+        if self.buf.is_empty() {
+            return None;
+        }
         let i = (self.head + self.buf.len() - 1) % self.buf.len();
         Some(&self.buf[i])
     }
@@ -61,12 +71,15 @@ impl History {
 
     pub fn record(&mut self, snap: &Snapshot) {
         self.cpu.push(snap.cpu.global_usage);
-        self.gpu
-            .push(snap.gpu.as_ref().map(|g| g.utilization_percent).unwrap_or(0.0));
-        let (rx, tx) = snap
-            .network
-            .iter()
-            .fold((0.0f64, 0.0f64), |(r, t), n| (r + n.rx_bytes_per_sec, t + n.tx_bytes_per_sec));
+        self.gpu.push(
+            snap.gpu
+                .as_ref()
+                .map(|g| g.utilization_percent)
+                .unwrap_or(0.0),
+        );
+        let (rx, tx) = snap.network.iter().fold((0.0f64, 0.0f64), |(r, t), n| {
+            (r + n.rx_bytes_per_sec, t + n.tx_bytes_per_sec)
+        });
         self.net_rx.push(rx);
         self.net_tx.push(tx);
         let mem_pct = if snap.memory.total == 0 {
@@ -134,7 +147,10 @@ mod tests {
     #[test]
     fn wraps_and_keeps_oldest_to_newest_order() {
         let mut rb = RingBuffer::new(3);
-        rb.push(1); rb.push(2); rb.push(3); rb.push(4);
+        rb.push(1);
+        rb.push(2);
+        rb.push(3);
+        rb.push(4);
         let v: Vec<i32> = rb.iter().copied().collect();
         assert_eq!(v, vec![2, 3, 4]);
         assert_eq!(*rb.latest().unwrap(), 4);
@@ -143,7 +159,8 @@ mod tests {
     #[test]
     fn not_full_yields_all_in_order() {
         let mut rb = RingBuffer::new(5);
-        rb.push(10); rb.push(20);
+        rb.push(10);
+        rb.push(20);
         let v: Vec<i32> = rb.iter().copied().collect();
         assert_eq!(v, vec![10, 20]);
         assert_eq!(*rb.latest().unwrap(), 20);
@@ -157,9 +174,13 @@ mod tests {
     }
 
     fn snap_with_cpu(usage: f32) -> Snapshot {
-        let mut s = Snapshot::default();
-        s.cpu = CpuSnapshot { global_usage: usage, ..Default::default() };
-        s
+        Snapshot {
+            cpu: CpuSnapshot {
+                global_usage: usage,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -180,11 +201,21 @@ mod tests {
 
     #[test]
     fn sums_network_across_interfaces() {
-        let mut s = Snapshot::default();
-        s.network = vec![
-            NetRate { name: "en0".into(), rx_bytes_per_sec: 100.0, tx_bytes_per_sec: 50.0 },
-            NetRate { name: "en1".into(), rx_bytes_per_sec: 200.0, tx_bytes_per_sec: 150.0 },
-        ];
+        let s = Snapshot {
+            network: vec![
+                NetRate {
+                    name: "en0".into(),
+                    rx_bytes_per_sec: 100.0,
+                    tx_bytes_per_sec: 50.0,
+                },
+                NetRate {
+                    name: "en1".into(),
+                    rx_bytes_per_sec: 200.0,
+                    tx_bytes_per_sec: 150.0,
+                },
+            ],
+            ..Default::default()
+        };
         let mut h = History::new(3);
         h.record(&s);
         assert_eq!(h.net_rx_series(), vec![300]);
@@ -202,8 +233,14 @@ mod tests {
 
     #[test]
     fn records_mem_percent_series() {
-        let mut s = Snapshot::default();
-        s.memory = MemorySnapshot { total: 1000, used: 250, ..Default::default() };
+        let s = Snapshot {
+            memory: MemorySnapshot {
+                total: 1000,
+                used: 250,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         let mut h = History::new(3);
         h.record(&s);
         assert_eq!(h.mem_series(), vec![25]);
