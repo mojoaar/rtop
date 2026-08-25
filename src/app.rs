@@ -342,41 +342,45 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
     let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
     let rx = data::spawn_sampler(provider, interval, cmd_rx);
     let mut app = App::new(config);
+    let mut dirty = true;
 
     loop {
-        terminal.draw(|frame| {
-            ui::render(
-                frame,
-                &app.snapshot,
-                &app.theme,
-                app.selected,
-                &app.history,
-                &app.display,
-                app.scroll,
-                &app.filter,
-                app.filtering,
-                app.detail.as_ref(),
-                app.show_help,
-                app.show_settings,
-                app.settings_index,
-                app.interval_ms,
-                app.transparent,
-                app.show_time,
-                app.show_uptime,
-                app.fullscreen,
-                app.wan_enabled,
-                app.private_ip.as_deref(),
-                app.wan_ip.as_deref(),
-                app.settings_editing,
-                &app.wan_url,
-                &app.wan_url_edit,
-                &mut app.proc_rect,
-                app.snapshot.processes.len(),
-                app.sort_key,
-                app.sort_dir,
-                &app.proc_history,
-            )
-        })?;
+        if dirty {
+            terminal.draw(|frame| {
+                ui::render(
+                    frame,
+                    &app.snapshot,
+                    &app.theme,
+                    app.selected,
+                    &app.history,
+                    &app.display,
+                    app.scroll,
+                    &app.filter,
+                    app.filtering,
+                    app.detail.as_ref(),
+                    app.show_help,
+                    app.show_settings,
+                    app.settings_index,
+                    app.interval_ms,
+                    app.transparent,
+                    app.show_time,
+                    app.show_uptime,
+                    app.fullscreen,
+                    app.wan_enabled,
+                    app.private_ip.as_deref(),
+                    app.wan_ip.as_deref(),
+                    app.settings_editing,
+                    &app.wan_url,
+                    &app.wan_url_edit,
+                    &mut app.proc_rect,
+                    app.snapshot.processes.len(),
+                    app.sort_key,
+                    app.sort_dir,
+                    &app.proc_history,
+                )
+            })?;
+            dirty = false;
+        }
 
         let mode = if app.filtering {
             Mode::Filtering
@@ -389,21 +393,31 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
         };
         let action = poll_action(std::time::Duration::from_millis(50), mode)?;
 
+        if !matches!(action, Action::Tick | Action::None) {
+            dirty = true;
+        }
+
         if let Action::Tick = action {
+            let mut updated = false;
             while let Ok(snap) = rx.try_recv() {
                 app.snapshot = snap;
                 app.history.record(&app.snapshot);
                 app.record_proc_history();
+                updated = true;
             }
             while let Ok(state) = app.ip_rx.try_recv() {
                 app.private_ip = state.private;
                 app.wan_ip = state.wan;
+                updated = true;
             }
-            app.refresh_display();
-            if let Some(d) = &app.detail {
-                if let Some(live) = app.display.iter().find(|p| p.pid == d.pid) {
-                    app.detail = Some(live.clone());
+            if updated {
+                app.refresh_display();
+                if let Some(d) = &app.detail {
+                    if let Some(live) = app.display.iter().find(|p| p.pid == d.pid) {
+                        app.detail = Some(live.clone());
+                    }
                 }
+                dirty = true;
             }
         }
 

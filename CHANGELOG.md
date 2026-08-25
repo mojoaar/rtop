@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-25
+
+### Added
+- Process filter feedback (and full keybinding list) in the full-screen
+  process view footer, so filtering works there with visible feedback.
+
+### Changed
+- Reduce idle CPU usage: only redraw the terminal when new data arrives or the
+  user acts, instead of every poll tick.
+- Cache user accounts and throttle slow-changing reads (temperature sensors,
+  GPU, fans, battery) to roughly every 2 seconds instead of every sample.
+- Cache per-process CPU time / thread counts (macOS `proc_pidinfo`) across
+  samples and refresh them at the throttled cadence, cutting the number of
+  per-process syscalls.
+
 ## [0.5.0] - 2026-08-25
 
 ### Security
