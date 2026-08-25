@@ -35,11 +35,17 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         vec![
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Min(0),
             Constraint::Length(1),
             Constraint::Length(1),
         ]
     } else {
-        vec![Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)]
+        vec![
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(1),
+        ]
     };
     let areas = Layout::vertical(constraints).split(inner);
 
@@ -65,7 +71,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         Paragraph::new(values)
             .style(Style::default().fg(theme.colors.muted))
             .alignment(Alignment::Right),
-        areas[2],
+        areas[3],
     );
 
     if has_swap {
@@ -82,7 +88,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         ]);
         frame.render_widget(
             Paragraph::new(swap_line).alignment(Alignment::Right),
-            areas[3],
+            areas[4],
         );
     }
 }

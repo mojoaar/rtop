@@ -22,8 +22,12 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
     frame.render_widget(block, area);
 
     let Some(gpu) = gpu else {
-        let [spark_area, na_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(inner);
+        let [spark_area, _spacer, na_area] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(1),
+        ])
+        .areas(inner);
         frame.render_widget(
             Sparkline::default()
                 .data(spark)
@@ -31,15 +35,18 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
             spark_area,
         );
         frame.render_widget(
-            Paragraph::new("n/a").style(Style::default().fg(theme.colors.muted)),
+            Paragraph::new("n/a")
+                .style(Style::default().fg(theme.colors.muted))
+                .alignment(Alignment::Right),
             na_area,
         );
         return;
     };
 
-    let [gauge_area, spark_area, mem_area] = Layout::vertical([
+    let [gauge_area, spark_area, _spacer, mem_area] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
+        Constraint::Min(0),
         Constraint::Length(1),
     ])
     .areas(inner);
