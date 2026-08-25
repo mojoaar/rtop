@@ -65,6 +65,7 @@ rtop --theme macchiato --interval 500
 | `k`             | Kill the selected process               |
 | `f`             | Filter processes by name, user, or PID  |
 | `s`             | Open the settings menu                  |
+| `z`             | Toggle full-screen process view         |
 | `Enter`         | Show details for the selected process   |
 | `?`             | Show the help popup                     |
 | `Esc`           | Close popup / cancel filter             |
@@ -97,6 +98,8 @@ are persisted to the config file:
 | Refresh     | `100`, `250`, `500`, `1000`, `2000`, `5000` ms    |
 | Theme       | `latte`, `frappe`, `macchiato`, `mocha`           |
 | Transparent | `on` / `off` (terminal background vs Catppuccin)  |
+| Time        | `on` / `off` (show the clock in the footer)       |
+| Uptime      | `on` / `off` (show uptime in the footer)          |
 | WAN IP      | `on` / `off` (fetch public IP via the URL below)  |
 | WAN URL     | endpoint returning your public IP (press `Enter` to edit) |
 
@@ -123,6 +126,8 @@ flavor = "mocha"        # latte | frappe | macchiato | mocha
 [general]
 interval_ms = 500       # sampling + render tick, in milliseconds
 transparent = true      # use the terminal's background (false = Catppuccin bg)
+show_time = true        # show the clock in the footer
+show_uptime = true      # show system uptime in the footer
 wan_enabled = false     # fetch and display the public (WAN) IP
 wan_url = "https://echo.johansen.foo/api/ip"  # endpoint returning your public IP
 ```

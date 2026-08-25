@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Process filter now also matches usernames (in addition to name and PID).
+- Full-screen process view (`z`) that expands the process table to the whole
+  terminal.
+- Settings toggles to show/hide the clock and uptime in the footer (both on by
+  default).
 
 ### Changed
 - Help popup logo replaced with a hand-crafted block-letter `rtop` wordmark.
+- Process details popup shows memory with raw KB precision.
+- GPU panel title no longer repeats the GPU name (`GPU · GPU`).
 
 ### Fixed
 - Process details popup now updates CPU, memory, and other stats live while

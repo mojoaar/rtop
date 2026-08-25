@@ -84,6 +84,7 @@ pub struct BatteryInfo {
 
 #[derive(Debug, Clone, Default)]
 pub struct GpuInfo {
+    #[allow(dead_code)]
     pub name: String,
     pub utilization_percent: f32,
     pub memory_used_bytes: u64,

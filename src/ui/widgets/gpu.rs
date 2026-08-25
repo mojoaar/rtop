@@ -7,9 +7,7 @@ use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline};
 use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64], theme: &Theme) {
-    let title = gpu
-        .map(|g| format!(" GPU · {} ", g.name))
-        .unwrap_or_else(|| " GPU ".to_string());
+    let title = " GPU ".to_string();
     let block = Block::bordered()
         .title(title)
         .title_style(

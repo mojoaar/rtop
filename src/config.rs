@@ -19,6 +19,8 @@ pub struct ThemeConfig {
 pub struct GeneralConfig {
     pub interval_ms: u64,
     pub transparent: bool,
+    pub show_time: bool,
+    pub show_uptime: bool,
     pub wan_enabled: bool,
     pub wan_url: String,
 }
@@ -36,6 +38,8 @@ impl Default for GeneralConfig {
         Self {
             interval_ms: 500,
             transparent: true,
+            show_time: true,
+            show_uptime: true,
             wan_enabled: false,
             wan_url: "https://echo.johansen.foo/api/ip".into(),
         }
@@ -82,6 +86,8 @@ mod tests {
         assert_eq!(c.theme.flavor, "mocha");
         assert_eq!(c.general.interval_ms, 500);
         assert!(c.general.transparent);
+        assert!(c.general.show_time);
+        assert!(c.general.show_uptime);
         assert!(!c.general.wan_enabled);
         assert_eq!(c.general.wan_url, "https://echo.johansen.foo/api/ip");
     }

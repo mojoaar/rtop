@@ -44,6 +44,8 @@ pub struct App {
     selected: Option<usize>,
     interval_ms: u64,
     transparent: bool,
+    show_time: bool,
+    show_uptime: bool,
     filter: String,
     filtering: bool,
     show_settings: bool,
@@ -60,6 +62,7 @@ pub struct App {
     scroll: usize,
     detail: Option<ProcessInfo>,
     show_help: bool,
+    fullscreen: bool,
     proc_rect: Rect,
     proc_history: HashMap<u32, ProcessHistory>,
 }
@@ -87,6 +90,8 @@ impl App {
             selected: None,
             interval_ms: config.general.interval_ms,
             transparent: config.general.transparent,
+            show_time: config.general.show_time,
+            show_uptime: config.general.show_uptime,
             filter: String::new(),
             filtering: false,
             show_settings: false,
@@ -103,6 +108,7 @@ impl App {
             scroll: 0,
             detail: None,
             show_help: false,
+            fullscreen: false,
             proc_rect: Rect::default(),
             proc_history: HashMap::new(),
         }
@@ -127,6 +133,8 @@ impl App {
             general: GeneralConfig {
                 interval_ms: self.interval_ms,
                 transparent: self.transparent,
+                show_time: self.show_time,
+                show_uptime: self.show_uptime,
                 wan_enabled: self.wan_enabled,
                 wan_url: self.wan_url.clone(),
             },
@@ -156,7 +164,7 @@ impl App {
     }
 
     fn settings_down(&mut self) {
-        if self.settings_index < 4 {
+        if self.settings_index < 6 {
             self.settings_index += 1;
         }
     }
@@ -173,6 +181,14 @@ impl App {
                 self.save_config();
             }
             3 => {
+                self.show_time = !self.show_time;
+                self.save_config();
+            }
+            4 => {
+                self.show_uptime = !self.show_uptime;
+                self.save_config();
+            }
+            5 => {
                 self.wan_enabled = !self.wan_enabled;
                 self.save_config();
                 self.send_ip_update();
@@ -193,6 +209,14 @@ impl App {
                 self.save_config();
             }
             3 => {
+                self.show_time = !self.show_time;
+                self.save_config();
+            }
+            4 => {
+                self.show_uptime = !self.show_uptime;
+                self.save_config();
+            }
+            5 => {
                 self.wan_enabled = !self.wan_enabled;
                 self.save_config();
                 self.send_ip_update();
@@ -335,6 +359,9 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 app.settings_index,
                 app.interval_ms,
                 app.transparent,
+                app.show_time,
+                app.show_uptime,
+                app.fullscreen,
                 app.wan_enabled,
                 app.private_ip.as_deref(),
                 app.wan_ip.as_deref(),
@@ -416,7 +443,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 Action::SettingsDec => app.settings_dec(&cmd_tx),
                 Action::SettingsInc => app.settings_inc(&cmd_tx),
                 Action::SettingsActivate => {
-                    if app.settings_index == 4 {
+                    if app.settings_index == 6 {
                         app.wan_url_edit = app.wan_url.clone();
                         app.settings_editing = true;
                     }
@@ -480,12 +507,17 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 }
             }
             Action::ToggleHelp => app.show_help = true,
+            Action::ToggleZoom => app.fullscreen = !app.fullscreen,
             Action::OpenSettings => app.show_settings = true,
             Action::FilterToggle => app.filtering = true,
             Action::Click(col, row) => app.click(col, row),
             Action::ScrollUp => app.move_up(),
             Action::ScrollDown => app.move_down(),
-            Action::Cancel => {}
+            Action::Cancel => {
+                if app.fullscreen {
+                    app.fullscreen = false;
+                }
+            }
             _ => {}
         }
     }

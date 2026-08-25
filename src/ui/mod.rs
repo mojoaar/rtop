@@ -29,6 +29,9 @@ pub fn render(
     settings_index: usize,
     interval_ms: u64,
     transparent: bool,
+    show_time: bool,
+    show_uptime: bool,
+    fullscreen: bool,
     wan_enabled: bool,
     private_ip: Option<&str>,
     wan_ip: Option<&str>,
@@ -46,6 +49,51 @@ pub fn render(
     if !transparent {
         let bg = Block::default().style(Style::default().bg(theme.colors.bg));
         frame.render_widget(bg, area);
+    }
+
+    if fullscreen {
+        let [proc_area, help_area] =
+            Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
+        *proc_rect = proc_area;
+        widgets::processes::render(
+            frame,
+            proc_area,
+            processes,
+            selected,
+            scroll,
+            total,
+            sort_key,
+            sort_dir,
+            theme,
+        );
+        frame.render_widget(
+            Paragraph::new("z back · q quit · ↑↓ select · Enter details · ? help")
+                .style(Style::default().fg(theme.colors.muted)),
+            help_area,
+        );
+        if let Some(p) = detail {
+            render_detail(frame, area, p, proc_history.get(&p.pid), theme);
+        }
+        if show_help {
+            render_help(frame, area, theme);
+        }
+        if show_settings {
+            render_settings(
+                frame,
+                area,
+                theme,
+                settings_index,
+                interval_ms,
+                transparent,
+                show_time,
+                show_uptime,
+                wan_enabled,
+                settings_editing,
+                wan_url,
+                wan_url_edit,
+            );
+        }
+        return;
     }
 
     let core_rows = snapshot.cpu.per_core.len().max(1) as u16;
@@ -125,23 +173,20 @@ pub fn render(
     frame.render_widget(Paragraph::new(footer).style(footer_style), keys_area);
 
     let now = chrono::Local::now();
-    let tz = now.format("%Z").to_string();
-    let clock = if tz.is_empty() {
-        format!(
-            "{} · up {} · {}ms",
-            now.format("%H:%M:%S"),
-            format_duration_secs(snapshot.uptime),
-            interval_ms
-        )
-    } else {
-        format!(
-            "{} {} · up {} · {}ms",
-            tz,
-            now.format("%H:%M:%S"),
-            format_duration_secs(snapshot.uptime),
-            interval_ms
-        )
-    };
+    let mut parts: Vec<String> = Vec::new();
+    if show_time {
+        let tz = now.format("%Z").to_string();
+        parts.push(if tz.is_empty() {
+            now.format("%H:%M:%S").to_string()
+        } else {
+            format!("{} {}", tz, now.format("%H:%M:%S"))
+        });
+    }
+    if show_uptime {
+        parts.push(format!("up {}", format_duration_secs(snapshot.uptime)));
+    }
+    parts.push(format!("{}ms", interval_ms));
+    let clock = parts.join(" · ");
     frame.render_widget(
         Paragraph::new(clock)
             .style(Style::default().fg(theme.colors.muted))
@@ -163,6 +208,8 @@ pub fn render(
             settings_index,
             interval_ms,
             transparent,
+            show_time,
+            show_uptime,
             wan_enabled,
             settings_editing,
             wan_url,
@@ -183,7 +230,7 @@ fn render_detail(
         Line::from(format!("Name: {}", p.name)),
         Line::from(format!("User: {}", p.user)),
         Line::from(format!("CPU: {:.1}%", p.cpu_usage)),
-        Line::from(format!("Memory: {}", human_bytes(p.memory_bytes))),
+        Line::from(format!("Memory: {} ({} KB)", human_bytes(p.memory_bytes), p.memory_bytes / 1024)),
         Line::from(format!("CPU time: {}", format_duration_secs(p.cpu_time))),
         Line::from(format!(
             "Threads: {}",
@@ -346,6 +393,8 @@ fn render_settings(
     index: usize,
     interval_ms: u64,
     transparent: bool,
+    show_time: bool,
+    show_uptime: bool,
     wan_enabled: bool,
     settings_editing: bool,
     wan_url: &str,
@@ -360,6 +409,8 @@ fn render_settings(
         ("Refresh", format!("{}ms", interval_ms)),
         ("Theme", theme.name.clone()),
         ("Transparent", if transparent { "on".into() } else { "off".into() }),
+        ("Time", if show_time { "on".into() } else { "off".into() }),
+        ("Uptime", if show_uptime { "on".into() } else { "off".into() }),
         ("WAN IP", if wan_enabled { "on".into() } else { "off".into() }),
         ("WAN URL", url_value),
     ];
@@ -459,6 +510,9 @@ mod tests {
             false,
             0,
             1000,
+            false,
+            false,
+            false,
             false,
             false,
             None,
