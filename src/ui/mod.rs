@@ -165,7 +165,7 @@ pub fn render(
         )
     } else {
         (
-            "q quit · t theme · c/m/p/n sort · ↑↓ select · k kill · f filter · s settings · ? help"
+            "q quit · t theme · z fullscreen · c/m/p/n sort · ↑↓ select · k kill · f filter · s settings · ? help"
                 .to_string(),
             Style::default().fg(theme.colors.muted),
         )
@@ -308,14 +308,15 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         " ╚═╝  ╚═╝   ╚═╝     ╚═════╝ ╚═╝",
     ];
 
-    let keys: [(&str, &str); 11] = [
+    let keys: [(&str, &str); 12] = [
         ("q", "quit"),
         ("t", "cycle theme"),
         ("s", "settings"),
+        ("z", "full-screen processes"),
         ("c/m/p/n", "sort cpu/mem/pid/name"),
         ("↑ / ↓", "move selection"),
         ("k", "kill selected process"),
-        ("f", "filter by name or pid"),
+        ("f", "filter by name / user / pid"),
         ("Enter", "process details"),
         ("?", "this help"),
         ("Esc", "close / cancel"),
