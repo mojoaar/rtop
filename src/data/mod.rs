@@ -19,7 +19,7 @@ use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
 pub fn spawn_sampler(
-    mut provider: impl MetricsProvider + Send + 'static,
+    mut provider: Box<dyn MetricsProvider + Send>,
     interval: Duration,
 ) -> Receiver<Snapshot> {
     let (tx, rx) = std::sync::mpsc::channel();
