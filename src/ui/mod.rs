@@ -275,13 +275,20 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         ("mouse", "click = select · scroll = move"),
     ];
 
+    let footer = [
+        format!("rtop v{}", env!("CARGO_PKG_VERSION")),
+        "repo: https://github.com/mojoaar/rtop".to_string(),
+        "author: Morten Johansen — https://johansen.foo".to_string(),
+    ];
+
     let content_width = keys
         .iter()
         .map(|(_, a)| 10 + a.len())
         .max()
         .unwrap_or(18)
         .max(18)
-        .max(banner.iter().map(|b| b.chars().count()).max().unwrap_or(0));
+        .max(banner.iter().map(|b| b.chars().count()).max().unwrap_or(0))
+        .max(footer.iter().map(|l| l.chars().count()).max().unwrap_or(0));
 
     let mut lines: Vec<Line> = banner
         .iter()
@@ -306,18 +313,9 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     }
 
     lines.push(Line::from(""));
-    lines.push(
-        Line::from(format!("rtop v{}", env!("CARGO_PKG_VERSION")))
-            .style(Style::default().fg(theme.colors.muted)),
-    );
-    lines.push(
-        Line::from("repo: https://github.com/mojoaar/rtop")
-            .style(Style::default().fg(theme.colors.muted)),
-    );
-    lines.push(
-        Line::from("author: Morten Johansen — https://johansen.foo")
-            .style(Style::default().fg(theme.colors.muted)),
-    );
+    for line in &footer {
+        lines.push(Line::from(line.clone()).style(Style::default().fg(theme.colors.muted)));
+    }
 
     let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
     let height = lines.len() as u16 + 2;
