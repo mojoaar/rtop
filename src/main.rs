@@ -5,6 +5,7 @@ use ratatui::widgets::Paragraph;
 
 mod config;
 mod data;
+mod platform;
 mod theme;
 
 #[derive(Parser)]

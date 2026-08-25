@@ -2,6 +2,7 @@ use crate::data::battery_impl::read_battery;
 use crate::data::rate::rate_per_sec;
 use crate::data::snapshot::*;
 use crate::data::MetricsProvider;
+use crate::platform::{FanStats, GpuStats};
 use std::time::Instant;
 use sysinfo::{Components, Disks, Networks, System};
 
@@ -12,6 +13,8 @@ pub struct SysinfoProvider {
     prev_net_tx: std::collections::HashMap<String, u64>,
     prev_disk_read: std::collections::HashMap<String, u64>,
     prev_disk_write: std::collections::HashMap<String, u64>,
+    gpu: Box<dyn GpuStats + Send>,
+    fan: Box<dyn FanStats + Send>,
 }
 
 impl SysinfoProvider {
@@ -23,6 +26,8 @@ impl SysinfoProvider {
             prev_net_tx: Default::default(),
             prev_disk_read: Default::default(),
             prev_disk_write: Default::default(),
+            gpu: crate::platform::build_gpu(),
+            fan: crate::platform::build_fan(),
         }
     }
 
@@ -127,8 +132,8 @@ impl MetricsProvider for SysinfoProvider {
             processes,
             components: components_vec,
             battery: read_battery(),
-            gpu: None,
-            fans: vec![],
+            gpu: self.gpu.read(),
+            fans: self.fan.read(),
         }
     }
 }
