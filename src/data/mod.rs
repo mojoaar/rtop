@@ -1,12 +1,18 @@
+pub mod battery_impl;
 pub mod format;
 pub mod history;
 pub mod rate;
 pub mod snapshot;
+pub mod sysinfo_impl;
 
 use snapshot::Snapshot;
 
 pub trait MetricsProvider {
     fn sample(&mut self) -> Snapshot;
+}
+
+pub fn build_provider() -> Box<dyn MetricsProvider + Send> {
+    Box::new(sysinfo_impl::SysinfoProvider::new())
 }
 
 use std::sync::mpsc::Receiver;
