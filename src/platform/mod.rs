@@ -8,14 +8,18 @@ pub trait FanStats {
     fn read(&self) -> Vec<FanInfo>;
 }
 
+#[cfg(not(target_os = "macos"))]
 pub struct NullGpu;
+#[cfg(not(target_os = "macos"))]
 impl GpuStats for NullGpu {
     fn read(&self) -> Option<GpuInfo> {
         None
     }
 }
 
+#[cfg(not(target_os = "macos"))]
 pub struct NullFan;
+#[cfg(not(target_os = "macos"))]
 impl FanStats for NullFan {
     fn read(&self) -> Vec<FanInfo> {
         vec![]

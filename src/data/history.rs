@@ -21,7 +21,9 @@ impl<T: Clone> RingBuffer<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize { self.buf.len() }
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool { self.buf.is_empty() }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
@@ -29,6 +31,7 @@ impl<T: Clone> RingBuffer<T> {
         (0..n).map(move |i| &self.buf[(self.head + i) % n])
     }
 
+    #[allow(dead_code)]
     pub fn latest(&self) -> Option<&T> {
         if self.buf.is_empty() { return None; }
         let i = (self.head + self.buf.len() - 1) % self.buf.len();

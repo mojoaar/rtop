@@ -3,7 +3,9 @@ use sysinfo::{Pid, Signal, System};
 #[derive(Debug, Clone, Copy)]
 pub enum SignalChoice {
     Term,
+    #[allow(dead_code)]
     Kill,
+    #[allow(dead_code)]
     Interrupt,
 }
 

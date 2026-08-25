@@ -18,6 +18,7 @@ pub struct ThemeConfig {
 #[serde(default)]
 pub struct GeneralConfig {
     pub interval_ms: u64,
+    pub transparent: bool,
 }
 
 impl Default for Config {
@@ -29,7 +30,12 @@ impl Default for ThemeConfig {
     fn default() -> Self { Self { flavor: "mocha".into() } }
 }
 impl Default for GeneralConfig {
-    fn default() -> Self { Self { interval_ms: 250 } }
+    fn default() -> Self {
+        Self {
+            interval_ms: 1000,
+            transparent: true,
+        }
+    }
 }
 
 impl Config {
@@ -67,17 +73,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_are_mocha_250() {
+    fn defaults_are_mocha_1000() {
         let c = Config::default();
         assert_eq!(c.theme.flavor, "mocha");
-        assert_eq!(c.general.interval_ms, 250);
+        assert_eq!(c.general.interval_ms, 1000);
+        assert!(c.general.transparent);
     }
 
     #[test]
     fn missing_fields_fall_back_to_defaults() {
         let c: Config = toml::from_str("[theme]\nflavor = \"latte\"\n").unwrap();
         assert_eq!(c.theme.flavor, "latte");
-        assert_eq!(c.general.interval_ms, 250);
+        assert_eq!(c.general.interval_ms, 1000);
+        assert!(c.general.transparent);
     }
 
     #[test]

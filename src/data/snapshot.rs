@@ -2,6 +2,7 @@ use std::time::Instant;
 
 #[derive(Debug, Clone, Default)]
 pub struct Snapshot {
+    #[allow(dead_code)]
     pub timestamp: Option<Instant>,
     pub cpu: CpuSnapshot,
     pub memory: MemorySnapshot,
@@ -19,6 +20,8 @@ pub struct CpuSnapshot {
     pub global_usage: f32,
     pub per_core: Vec<f32>,
     pub load_avg: Option<[f64; 3]>,
+    pub brand: String,
+    pub frequency_mhz: u64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -53,6 +56,9 @@ pub struct ProcessInfo {
     pub cpu_usage: f32,
     pub memory_bytes: u64,
     pub status: String,
+    pub user: String,
+    pub cpu_time: u64,
+    pub threads: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default)]

@@ -17,6 +17,19 @@ pub fn human_rate(bytes_per_sec: f64) -> String {
     format!("{}/s", human_bytes(bytes_per_sec.round() as u64))
 }
 
+pub fn format_duration_secs(secs: u64) -> String {
+    let h = secs / 3600;
+    let m = (secs % 3600) / 60;
+    let s = secs % 60;
+    if h > 0 {
+        format!("{h}h {m}m")
+    } else if m > 0 {
+        format!("{m}m {s}s")
+    } else {
+        format!("{s}s")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -32,5 +45,14 @@ mod tests {
     #[test]
     fn formats_rates() {
         assert_eq!(human_rate(1024.0), "1.0 KiB/s");
+    }
+
+    #[test]
+    fn formats_durations() {
+        assert_eq!(format_duration_secs(0), "0s");
+        assert_eq!(format_duration_secs(45), "45s");
+        assert_eq!(format_duration_secs(90), "1m 30s");
+        assert_eq!(format_duration_secs(3600), "1h 0m");
+        assert_eq!(format_duration_secs(7325), "2h 2m");
     }
 }

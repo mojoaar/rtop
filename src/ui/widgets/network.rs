@@ -2,7 +2,7 @@ use crate::data::format::human_rate;
 use crate::data::snapshot::NetRate;
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph, Sparkline};
 use ratatui::Frame;
@@ -16,7 +16,12 @@ pub fn render(
     theme: &Theme,
 ) {
     let block = Block::bordered()
-        .title("Network")
+        .title(" Network ")
+        .title_style(
+            Style::default()
+                .fg(theme.colors.accent)
+                .add_modifier(Modifier::BOLD),
+        )
         .border_style(Style::default().fg(theme.colors.border));
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -41,7 +46,6 @@ pub fn render(
 
     let lines: Vec<Line> = network
         .iter()
-        .filter(|n| n.rx_bytes_per_sec > 0.0 || n.tx_bytes_per_sec > 0.0)
         .map(|n| {
             Line::from(format!(
                 "{}  ↓ {}  ↑ {}",

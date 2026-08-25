@@ -12,8 +12,10 @@ with [Catppuccin].
 
 - Live CPU (global + per-core), memory & swap, GPU, network I/O rates, and disk usage
 - Battery status, temperature sensors, and fan speeds (where available)
-- Sortable process table with selection and process kill
-- Four Catppuccin flavors with runtime theme cycling
+- Sortable, filterable process table with selection, mouse support, per-process
+  details popup, and process kill
+- Four Catppuccin flavors with runtime theme cycling and optional transparent background
+- Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average
 - Config file for theme and refresh interval, overridable via CLI flags
 - Non-blocking data collection on a background thread — a slow sensor never janks the UI
 
@@ -50,16 +52,22 @@ rtop --theme macchiato --interval 500
 
 ## Keybindings
 
-| Key             | Action                          |
-| --------------- | ------------------------------- |
-| `q`             | Quit                            |
-| `t`             | Cycle Catppuccin theme          |
-| `c`             | Sort processes by CPU           |
-| `m`             | Sort processes by memory        |
-| `p`             | Sort processes by PID           |
-| `n`             | Sort processes by name          |
-| `↑` / `↓`       | Move process selection          |
-| `k`             | Kill the selected process       |
+| Key             | Action                                  |
+| --------------- | --------------------------------------- |
+| `q`             | Quit                                    |
+| `t`             | Cycle Catppuccin theme                  |
+| `c` / `m` / `p` / `n` | Sort processes by CPU / memory / PID / name |
+| `↑` / `↓`       | Move process selection                  |
+| `k`             | Kill the selected process               |
+| `f`             | Filter processes by name or PID         |
+| `Enter`         | Show details for the selected process   |
+| `?`             | Show the help popup                     |
+| `Esc`           | Close popup / cancel filter             |
+| Mouse click     | Select the process under the cursor     |
+| Mouse scroll    | Move process selection                  |
+
+While filtering, type to match process names (case-insensitive) or PIDs, `Enter`
+to apply, `Esc` to cancel, `Backspace` to delete.
 
 ## Themes
 
@@ -90,7 +98,8 @@ Format:
 flavor = "mocha"        # latte | frappe | macchiato | mocha
 
 [general]
-interval_ms = 250       # sampling + render tick, in milliseconds
+interval_ms = 1000      # sampling + render tick, in milliseconds
+transparent = true      # use the terminal's background (false = Catppuccin bg)
 ```
 
 The file is created automatically when you cycle themes (`t`).

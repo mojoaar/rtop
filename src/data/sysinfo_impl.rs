@@ -4,7 +4,7 @@ use crate::data::snapshot::*;
 use crate::data::MetricsProvider;
 use crate::platform::{FanStats, GpuStats};
 use std::time::Instant;
-use sysinfo::{Components, Disks, Networks, System};
+use sysinfo::{Components, Disks, Networks, System, Users};
 
 pub struct SysinfoProvider {
     system: System,
@@ -66,10 +66,17 @@ impl MetricsProvider for SysinfoProvider {
         let components = Components::new_with_refreshed_list();
 
         let load_avg = sysinfo::System::load_average();
+        let cpus = self.system.cpus();
+        let (brand, freq) = cpus
+            .first()
+            .map(|c| (c.brand().to_string(), c.frequency()))
+            .unwrap_or_default();
         let cpu = CpuSnapshot {
             global_usage: self.system.global_cpu_usage(),
-            per_core: self.system.cpus().iter().map(|c| c.cpu_usage()).collect(),
+            per_core: cpus.iter().map(|c| c.cpu_usage()).collect(),
             load_avg: Some([load_avg.one, load_avg.five, load_avg.fifteen]),
+            brand,
+            frequency_mhz: freq,
         };
 
         let memory = MemorySnapshot {
@@ -82,8 +89,8 @@ impl MetricsProvider for SysinfoProvider {
         let network: Vec<NetRate> = networks
             .iter()
             .map(|(name, data)| {
-                let rx = Self::diff_map(&mut self.prev_net_rx, name, data.received(), elapsed);
-                let tx = Self::diff_map(&mut self.prev_net_tx, name, data.transmitted(), elapsed);
+                let rx = Self::diff_map(&mut self.prev_net_rx, name, data.total_received(), elapsed);
+                let tx = Self::diff_map(&mut self.prev_net_tx, name, data.total_transmitted(), elapsed);
                 NetRate {
                     name: name.clone(),
                     rx_bytes_per_sec: rx,
@@ -110,16 +117,27 @@ impl MetricsProvider for SysinfoProvider {
             })
             .collect();
 
+        let users = Users::new_with_refreshed_list();
         let processes: Vec<ProcessInfo> = self
             .system
             .processes()
             .iter()
-            .map(|(pid, p)| ProcessInfo {
-                pid: pid.as_u32(),
-                name: p.name().to_string_lossy().to_string(),
-                cpu_usage: p.cpu_usage(),
-                memory_bytes: p.memory(),
-                status: format!("{:?}", p.status()),
+            .map(|(pid, p)| {
+                let user = p
+                    .user_id()
+                    .and_then(|uid| users.get_user_by_id(uid))
+                    .map(|u| u.name().to_string())
+                    .unwrap_or_default();
+                ProcessInfo {
+                    pid: pid.as_u32(),
+                    name: p.name().to_string_lossy().to_string(),
+                    cpu_usage: p.cpu_usage(),
+                    memory_bytes: p.memory(),
+                    status: format!("{:?}", p.status()),
+                    user,
+                    cpu_time: p.run_time(),
+                    threads: p.tasks().map(|t| t.len()),
+                }
             })
             .collect();
 

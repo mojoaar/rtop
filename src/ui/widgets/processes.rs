@@ -1,3 +1,4 @@
+use crate::data::format::{format_duration_secs, human_bytes};
 use crate::data::snapshot::ProcessInfo;
 use crate::theme::Theme;
 use ratatui::layout::Rect;
@@ -22,6 +23,14 @@ pub fn sort(processes: &mut Vec<ProcessInfo>, key: SortKey) {
     });
 }
 
+pub fn matches_filter(query: &str, p: &ProcessInfo) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    let q = query.to_lowercase();
+    p.name.to_lowercase().contains(&q) || p.pid.to_string().contains(&q)
+}
+
 pub fn render(
     frame: &mut Frame,
     area: Rect,
@@ -30,31 +39,40 @@ pub fn render(
     theme: &Theme,
 ) {
     let block = Block::bordered()
-        .title("Processes")
+        .title(" Processes ")
+        .title_style(Style::default().fg(theme.colors.accent))
         .border_style(Style::default().fg(theme.colors.border));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
     let widths = [
         ratatui::layout::Constraint::Length(7),
+        ratatui::layout::Constraint::Length(12),
         ratatui::layout::Constraint::Min(10),
         ratatui::layout::Constraint::Length(7),
         ratatui::layout::Constraint::Length(10),
-        ratatui::layout::Constraint::Length(8),
+        ratatui::layout::Constraint::Length(9),
+        ratatui::layout::Constraint::Length(5),
     ];
-    let header = Row::new(vec!["PID", "NAME", "CPU%", "MEM", "STATE"])
+    let header = Row::new(vec!["PID", "USER", "NAME", "CPU%", "MEM", "TIME", "THR"])
         .style(Style::default().fg(theme.colors.accent));
 
     let rows: Vec<Row> = processes
         .iter()
         .enumerate()
         .map(|(i, p)| {
+            let threads = p
+                .threads
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| "—".to_string());
             let cells = vec![
                 Cell::from(p.pid.to_string()),
+                Cell::from(p.user.clone()),
                 Cell::from(p.name.clone()),
                 Cell::from(format!("{:.1}", p.cpu_usage)),
-                Cell::from(crate::data::format::human_bytes(p.memory_bytes)),
-                Cell::from(p.status.clone()),
+                Cell::from(human_bytes(p.memory_bytes)),
+                Cell::from(format_duration_secs(p.cpu_time)),
+                Cell::from(threads),
             ];
             let mut row = Row::new(cells);
             if selected == Some(i) {
@@ -75,7 +93,16 @@ mod tests {
     use super::*;
 
     fn p(pid: u32, name: &str, cpu: f32, mem: u64) -> ProcessInfo {
-        ProcessInfo { pid, name: name.into(), cpu_usage: cpu, memory_bytes: mem, status: "Running".into() }
+        ProcessInfo {
+            pid,
+            name: name.into(),
+            cpu_usage: cpu,
+            memory_bytes: mem,
+            status: "Running".into(),
+            user: "root".into(),
+            cpu_time: 0,
+            threads: Some(1),
+        }
     }
 
     #[test]
@@ -91,5 +118,30 @@ mod tests {
         let mut v = vec![p(9, "a", 0.0, 0), p(1, "b", 0.0, 0)];
         sort(&mut v, SortKey::Pid);
         assert_eq!(v[0].pid, 1);
+    }
+
+    #[test]
+    fn matches_by_name_case_insensitive() {
+        let proc = p(123, "Firefox", 0.0, 0);
+        assert!(matches_filter("fire", &proc));
+        assert!(matches_filter("FOX", &proc));
+    }
+
+    #[test]
+    fn matches_by_pid() {
+        let proc = p(1234, "bash", 0.0, 0);
+        assert!(matches_filter("123", &proc));
+    }
+
+    #[test]
+    fn empty_filter_matches_all() {
+        let proc = p(1, "init", 0.0, 0);
+        assert!(matches_filter("", &proc));
+    }
+
+    #[test]
+    fn no_match_returns_false() {
+        let proc = p(1, "init", 0.0, 0);
+        assert!(!matches_filter("zzz", &proc));
     }
 }

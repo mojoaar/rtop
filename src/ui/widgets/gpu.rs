@@ -2,13 +2,21 @@ use crate::data::format::human_bytes;
 use crate::data::snapshot::GpuInfo;
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline};
 use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64], theme: &Theme) {
+    let title = gpu
+        .map(|g| format!(" GPU · {} ", g.name))
+        .unwrap_or_else(|| " GPU ".to_string());
     let block = Block::bordered()
-        .title("GPU")
+        .title(title)
+        .title_style(
+            Style::default()
+                .fg(theme.colors.accent)
+                .add_modifier(Modifier::BOLD),
+        )
         .border_style(Style::default().fg(theme.colors.border));
     let inner = block.inner(area);
     frame.render_widget(block, area);
