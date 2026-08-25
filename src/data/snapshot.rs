@@ -4,6 +4,7 @@ use std::time::Instant;
 pub struct Snapshot {
     #[allow(dead_code)]
     pub timestamp: Option<Instant>,
+    pub uptime: u64,
     pub cpu: CpuSnapshot,
     pub memory: MemorySnapshot,
     pub network: Vec<NetRate>,
@@ -34,6 +35,7 @@ pub struct MemorySnapshot {
 
 #[derive(Debug, Clone, Default)]
 pub struct NetRate {
+    #[allow(dead_code)]
     pub name: String,
     pub rx_bytes_per_sec: f64,
     pub tx_bytes_per_sec: f64,
@@ -42,10 +44,13 @@ pub struct NetRate {
 #[derive(Debug, Clone, Default)]
 pub struct DiskUsage {
     pub mount_point: String,
+    #[allow(dead_code)]
     pub name: String,
     pub total: u64,
     pub available: u64,
+    #[allow(dead_code)]
     pub read_bytes_per_sec: f64,
+    #[allow(dead_code)]
     pub write_bytes_per_sec: f64,
 }
 

@@ -1,9 +1,11 @@
 use crate::data::format::{format_duration_secs, human_bytes};
 use crate::data::snapshot::ProcessInfo;
 use crate::theme::Theme;
-use ratatui::layout::Rect;
-use ratatui::style::Style;
-use ratatui::widgets::{Block, Cell, Row, Table};
+use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{
+    Block, Cell, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
+};
 use ratatui::Frame;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -36,31 +38,45 @@ pub fn render(
     area: Rect,
     processes: &[ProcessInfo],
     selected: Option<usize>,
+    scroll: usize,
     theme: &Theme,
 ) {
     let block = Block::bordered()
         .title(" Processes ")
-        .title_style(Style::default().fg(theme.colors.accent))
+        .title_style(
+            Style::default()
+                .fg(theme.colors.accent)
+                .add_modifier(Modifier::BOLD),
+        )
         .border_style(Style::default().fg(theme.colors.border));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
+    let [table_area, scroll_area] =
+        Layout::horizontal([Constraint::Min(0), Constraint::Length(1)]).areas(inner);
+
     let widths = [
-        ratatui::layout::Constraint::Length(7),
-        ratatui::layout::Constraint::Length(12),
-        ratatui::layout::Constraint::Min(10),
-        ratatui::layout::Constraint::Length(7),
-        ratatui::layout::Constraint::Length(10),
-        ratatui::layout::Constraint::Length(9),
-        ratatui::layout::Constraint::Length(5),
+        Constraint::Length(7),
+        Constraint::Length(12),
+        Constraint::Min(10),
+        Constraint::Length(7),
+        Constraint::Length(10),
+        Constraint::Length(9),
+        Constraint::Length(5),
     ];
     let header = Row::new(vec!["PID", "USER", "NAME", "CPU%", "MEM", "TIME", "THR"])
         .style(Style::default().fg(theme.colors.accent));
 
-    let rows: Vec<Row> = processes
+    let scroll = scroll.min(processes.len().saturating_sub(1));
+    let visible = (table_area.height as usize).saturating_sub(1);
+    let end = (scroll + visible).min(processes.len());
+    let window = &processes[scroll.min(processes.len())..end];
+
+    let rows: Vec<Row> = window
         .iter()
         .enumerate()
         .map(|(i, p)| {
+            let abs = scroll + i;
             let threads = p
                 .threads
                 .map(|n| n.to_string())
@@ -75,16 +91,22 @@ pub fn render(
                 Cell::from(threads),
             ];
             let mut row = Row::new(cells);
-            if selected == Some(i) {
+            if selected == Some(abs) {
                 row = row.style(Style::default().bg(theme.colors.highlight));
             }
             row
         })
         .collect();
 
-    frame.render_widget(
-        Table::new(rows, widths).header(header),
-        inner,
+    frame.render_widget(Table::new(rows, widths).header(header), table_area);
+
+    let mut state = ScrollbarState::new(processes.len())
+        .position(scroll)
+        .viewport_content_length(visible);
+    frame.render_stateful_widget(
+        Scrollbar::new(ScrollbarOrientation::VerticalRight),
+        scroll_area,
+        &mut state,
     );
 }
 

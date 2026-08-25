@@ -4,7 +4,7 @@ use crate::data::format::{format_duration_secs, human_bytes};
 use crate::data::history::History;
 use crate::data::snapshot::{ProcessInfo, Snapshot};
 use crate::theme::Theme;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Clear, Paragraph};
@@ -17,6 +17,8 @@ pub fn render(
     theme: &Theme,
     selected: Option<usize>,
     history: &History,
+    processes: &[ProcessInfo],
+    scroll: usize,
     filter: &str,
     filtering: bool,
     detail: Option<&ProcessInfo>,
@@ -31,13 +33,12 @@ pub fn render(
         frame.render_widget(bg, area);
     }
 
-    let [cpu_area, mem_gpu_area, net_area, disk_area, sensors_area, proc_area, help_area] =
+    let [cpu_area, mem_gpu_area, net_area, disk_sensors_area, proc_area, help_area] =
         Layout::vertical([
-            Constraint::Length(7),
             Constraint::Length(6),
-            Constraint::Min(4),
-            Constraint::Min(3),
             Constraint::Length(6),
+            Constraint::Length(4),
+            Constraint::Min(5),
             Constraint::Min(10),
             Constraint::Length(1),
         ])
@@ -45,6 +46,8 @@ pub fn render(
 
     let [mem_area, gpu_area] =
         Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(mem_gpu_area);
+    let [disk_area, sensors_area] =
+        Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(disk_sensors_area);
 
     *proc_rect = proc_area;
 
@@ -68,7 +71,10 @@ pub fn render(
         &snapshot.fans,
         theme,
     );
-    widgets::processes::render(frame, proc_area, &snapshot.processes, selected, theme);
+    widgets::processes::render(frame, proc_area, processes, selected, scroll, theme);
+
+    let [keys_area, clock_area] =
+        Layout::horizontal([Constraint::Min(0), Constraint::Length(24)]).areas(help_area);
 
     let (footer, footer_style) = if filtering {
         (format!("filter: {filter}|"), Style::default().fg(theme.colors.warning))
@@ -84,7 +90,19 @@ pub fn render(
             Style::default().fg(theme.colors.muted),
         )
     };
-    frame.render_widget(Paragraph::new(footer).style(footer_style), help_area);
+    frame.render_widget(Paragraph::new(footer).style(footer_style), keys_area);
+
+    let clock = format!(
+        "{} · up {}",
+        chrono::Local::now().format("%H:%M:%S"),
+        format_duration_secs(snapshot.uptime)
+    );
+    frame.render_widget(
+        Paragraph::new(clock)
+            .style(Style::default().fg(theme.colors.muted))
+            .alignment(Alignment::Right),
+        clock_area,
+    );
 
     if let Some(p) = detail {
         render_detail(frame, area, p, theme);
@@ -131,17 +149,43 @@ fn render_detail(frame: &mut Frame, area: Rect, p: &ProcessInfo, theme: &Theme) 
 }
 
 fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let lines = vec![
-        Line::from("q      quit"),
-        Line::from("t      cycle theme"),
-        Line::from("c/m/p/n  sort by cpu/mem/pid/name"),
-        Line::from("↑↓      move selection"),
-        Line::from("k      kill selected process"),
-        Line::from("f      filter by name or pid"),
-        Line::from("Enter   process details"),
-        Line::from("?      this help"),
-        Line::from("mouse  click = select · scroll = move"),
+    let banner = [
+        " ____ _____ ___  ____ ",
+        "|  _ \\_   _/ _ \\|  _ \\",
+        "| |_) || || | | | |_) |",
+        "|  _ < | || |_| |  __/",
+        "|_| \\_\\|_| \\___/|_|   ",
     ];
+
+    let keys: [(&str, &str); 10] = [
+        ("q", "quit"),
+        ("t", "cycle theme"),
+        ("c/m/p/n", "sort cpu/mem/pid/name"),
+        ("↑ / ↓", "move selection"),
+        ("k", "kill selected process"),
+        ("f", "filter by name or pid"),
+        ("Enter", "process details"),
+        ("?", "this help"),
+        ("Esc", "close / cancel"),
+        ("mouse", "click = select · scroll = move"),
+    ];
+
+    let mut lines: Vec<Line> = banner
+        .iter()
+        .map(|b| Line::from(*b).style(Style::default().fg(theme.colors.accent)))
+        .collect();
+    lines.push(Line::from(""));
+
+    for (key, action) in keys {
+        lines.push(Line::from(vec![
+            ratatui::text::Span::styled(
+                format!("{key:<10}"),
+                Style::default().fg(theme.colors.accent),
+            ),
+            ratatui::text::Span::styled(action, Style::default().fg(theme.colors.text)),
+        ]));
+    }
+
     let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
     let height = lines.len() as u16 + 2;
     let popup = centered_rect(width, height, area);
@@ -196,6 +240,8 @@ mod tests {
             t,
             None,
             history,
+            &snap.processes,
+            0,
             "",
             false,
             None,

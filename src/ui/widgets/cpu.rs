@@ -17,13 +17,15 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let [gauge_area, spark_area, info_area, cores_area] = Layout::vertical([
-        Constraint::Length(1),
+    let [left_area, right_area] =
+        Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(inner);
+
+    let [gauge_area, spark_area, info_area] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Min(0),
     ])
-    .areas(inner);
+    .areas(left_area);
 
     frame.render_widget(
         Gauge::default()
@@ -76,6 +78,6 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
             .bar_width(2)
             .bar_gap(1)
             .bar_style(Style::default().fg(theme.colors.accent)),
-        cores_area,
+        right_area,
     );
 }

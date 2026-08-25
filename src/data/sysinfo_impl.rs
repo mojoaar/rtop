@@ -128,6 +128,13 @@ impl MetricsProvider for SysinfoProvider {
                     .and_then(|uid| users.get_user_by_id(uid))
                     .map(|u| u.name().to_string())
                     .unwrap_or_default();
+                #[cfg(target_os = "macos")]
+                let cpu_time =
+                    crate::platform::cpu_time::process_cpu_time(pid.as_u32()).unwrap_or_else(|| {
+                        p.run_time()
+                    });
+                #[cfg(not(target_os = "macos"))]
+                let cpu_time = p.run_time();
                 ProcessInfo {
                     pid: pid.as_u32(),
                     name: p.name().to_string_lossy().to_string(),
@@ -135,7 +142,7 @@ impl MetricsProvider for SysinfoProvider {
                     memory_bytes: p.memory(),
                     status: format!("{:?}", p.status()),
                     user,
-                    cpu_time: p.run_time(),
+                    cpu_time,
                     threads: p.tasks().map(|t| t.len()),
                 }
             })
@@ -151,6 +158,7 @@ impl MetricsProvider for SysinfoProvider {
 
         Snapshot {
             timestamp: Some(now),
+            uptime: sysinfo::System::uptime(),
             cpu,
             memory,
             network,

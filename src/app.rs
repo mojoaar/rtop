@@ -22,6 +22,7 @@ pub struct App {
     filter: String,
     filtering: bool,
     display: Vec<ProcessInfo>,
+    scroll: usize,
     detail: Option<ProcessInfo>,
     show_help: bool,
     proc_rect: Rect,
@@ -48,6 +49,7 @@ impl App {
             filter: String::new(),
             filtering: false,
             display: Vec::new(),
+            scroll: 0,
             detail: None,
             show_help: false,
             proc_rect: Rect::default(),
@@ -81,6 +83,26 @@ impl App {
                 self.selected = None;
             }
         }
+        let max_scroll = self.display.len().saturating_sub(1);
+        if self.scroll > max_scroll {
+            self.scroll = max_scroll;
+        }
+        self.ensure_visible();
+    }
+
+    fn visible_rows(&self) -> usize {
+        (self.proc_rect.height.saturating_sub(3)).max(1) as usize
+    }
+
+    fn ensure_visible(&mut self) {
+        if let Some(i) = self.selected {
+            let vis = self.visible_rows();
+            if i < self.scroll {
+                self.scroll = i;
+            } else if i >= self.scroll.saturating_add(vis) {
+                self.scroll = i - vis + 1;
+            }
+        }
     }
 
     fn move_up(&mut self) {
@@ -93,6 +115,7 @@ impl App {
             Some(i) if i > 0 => i - 1,
             _ => 0,
         });
+        self.ensure_visible();
     }
 
     fn move_down(&mut self) {
@@ -106,6 +129,7 @@ impl App {
             None => 0,
             _ => len - 1,
         });
+        self.ensure_visible();
     }
 
     fn click(&mut self, col: u16, row: u16) {
@@ -118,7 +142,7 @@ impl App {
         }
         let header_row = r.y.saturating_add(2);
         if let Some(rel) = row.checked_sub(header_row) {
-            let idx = rel as usize;
+            let idx = self.scroll.saturating_add(rel as usize);
             if idx < self.display.len() {
                 self.selected = Some(idx);
             }
@@ -157,6 +181,8 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 &app.theme,
                 app.selected,
                 &app.history,
+                &app.display,
+                app.scroll,
                 &app.filter,
                 app.filtering,
                 app.detail.as_ref(),
