@@ -33,18 +33,20 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
     let has_swap = mem.swap_total > 0;
     let constraints: Vec<Constraint> = if has_swap {
         vec![
-            Constraint::Length(1),
-            Constraint::Length(1),
+            Constraint::Length(1), // active bar
+            Constraint::Length(1), // spacing
+            Constraint::Length(1), // history sparkline
             Constraint::Min(0),
-            Constraint::Length(1),
-            Constraint::Length(1),
+            Constraint::Length(1), // stats text
+            Constraint::Length(1), // swap
         ]
     } else {
         vec![
-            Constraint::Length(1),
-            Constraint::Length(1),
+            Constraint::Length(1), // active bar
+            Constraint::Length(1), // spacing
+            Constraint::Length(1), // history sparkline
             Constraint::Min(0),
-            Constraint::Length(1),
+            Constraint::Length(1), // stats text
         ]
     };
     let areas = Layout::vertical(constraints).split(inner);
@@ -58,7 +60,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(color)),
-        areas[1],
+        areas[2],
     );
 
     let values = format!(
@@ -71,7 +73,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         Paragraph::new(values)
             .style(Style::default().fg(theme.colors.muted))
             .alignment(Alignment::Right),
-        areas[3],
+        areas[4],
     );
 
     if has_swap {
@@ -88,7 +90,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         ]);
         frame.render_widget(
             Paragraph::new(swap_line).alignment(Alignment::Right),
-            areas[4],
+            areas[5],
         );
     }
 }

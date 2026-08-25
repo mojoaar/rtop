@@ -43,11 +43,12 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
         return;
     };
 
-    let [gauge_area, spark_area, _spacer, mem_area] = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(1),
+    let [gauge_area, _gap, spark_area, _spacer, mem_area] = Layout::vertical([
+        Constraint::Length(1), // active gauge
+        Constraint::Length(1), // spacing
+        Constraint::Length(1), // history sparkline
         Constraint::Min(0),
-        Constraint::Length(1),
+        Constraint::Length(1), // mem text
     ])
     .areas(inner);
 
