@@ -4,6 +4,7 @@ use crossterm::event::{self, Event, KeyCode};
 use ratatui::widgets::Paragraph;
 
 mod config;
+mod theme;
 
 #[derive(Parser)]
 #[command(name = "rtop", about = "A beautiful terminal system monitor")]
