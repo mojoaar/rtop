@@ -44,6 +44,14 @@ impl SysinfoProvider {
 }
 
 impl MetricsProvider for SysinfoProvider {
+    fn kill(&mut self, pid: u32) {
+        let _ = crate::platform::signal::send_signal(
+            &self.system,
+            pid,
+            crate::platform::signal::SignalChoice::Term,
+        );
+    }
+
     fn sample(&mut self) -> Snapshot {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last);

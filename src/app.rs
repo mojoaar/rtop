@@ -1,5 +1,5 @@
-use crate::config::Config;
-use crate::data::{self, snapshot::Snapshot};
+use crate::config::{Config, GeneralConfig, ThemeConfig};
+use crate::data::{self, snapshot::Snapshot, Command};
 use crate::event::{poll_action, Action};
 use crate::theme;
 use crate::ui;
@@ -13,6 +13,7 @@ pub struct App {
     theme_index: usize,
     sort_key: SortKey,
     selected: Option<usize>,
+    interval_ms: u64,
 }
 
 impl App {
@@ -30,12 +31,18 @@ impl App {
             theme_index: index,
             sort_key: SortKey::Cpu,
             selected: None,
+            interval_ms: config.general.interval_ms,
         }
     }
 
     fn cycle_theme(&mut self) {
         self.theme_index = (self.theme_index + 1) % self.themes.len();
         self.theme = self.themes[self.theme_index].clone();
+        let cfg = Config {
+            theme: ThemeConfig { flavor: self.theme.name.clone() },
+            general: GeneralConfig { interval_ms: self.interval_ms },
+        };
+        let _ = cfg.save();
     }
 }
 
@@ -49,7 +56,8 @@ pub fn run(config: &Config) -> Result<()> {
 fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result<()> {
     let interval = std::time::Duration::from_millis(config.general.interval_ms);
     let provider = data::build_provider();
-    let rx = data::spawn_sampler(provider, interval);
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+    let rx = data::spawn_sampler(provider, interval, cmd_rx);
     let mut app = App::new(config);
 
     loop {
@@ -84,7 +92,13 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                     });
                 }
             }
-            Action::Kill => {}
+            Action::Kill => {
+                if let Some(i) = app.selected {
+                    if let Some(p) = app.snapshot.processes.get(i) {
+                        let _ = cmd_tx.send(Command::Kill(p.pid));
+                    }
+                }
+            }
             Action::Tick => {
                 while let Ok(snap) = rx.try_recv() {
                     app.snapshot = snap;
