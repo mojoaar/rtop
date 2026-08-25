@@ -32,9 +32,9 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
 
     let has_swap = mem.swap_total > 0;
     let constraints: Vec<Constraint> = if has_swap {
-        vec![Constraint::Length(2), Constraint::Length(1), Constraint::Length(1)]
+        vec![Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)]
     } else {
-        vec![Constraint::Length(2), Constraint::Length(1)]
+        vec![Constraint::Length(1), Constraint::Length(1)]
     };
     let areas = Layout::vertical(constraints).split(inner);
 

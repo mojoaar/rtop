@@ -1,5 +1,6 @@
 use crate::config::{Config, GeneralConfig, ThemeConfig};
 use crate::data::history::{History, ProcessHistory};
+use crate::data::ip::{self, IpCmd, IpConfig, IpState};
 use crate::data::snapshot::ProcessInfo;
 use crate::data::{self, snapshot::Snapshot, Command};
 use crate::event::{poll_action, Action, Mode};
@@ -9,6 +10,7 @@ use crate::ui::widgets::processes::{self, SortDir, SortKey};
 use anyhow::Result;
 use ratatui::layout::Rect;
 use std::collections::HashMap;
+use std::sync::mpsc::{Receiver, Sender};
 
 const INTERVAL_PRESETS: [u64; 6] = [100, 250, 500, 1000, 2000, 5000];
 
@@ -46,6 +48,14 @@ pub struct App {
     filtering: bool,
     show_settings: bool,
     settings_index: usize,
+    settings_editing: bool,
+    wan_enabled: bool,
+    wan_url: String,
+    wan_url_edit: String,
+    private_ip: Option<String>,
+    wan_ip: Option<String>,
+    ip_tx: Option<Sender<IpCmd>>,
+    ip_rx: Receiver<IpState>,
     display: Vec<ProcessInfo>,
     scroll: usize,
     detail: Option<ProcessInfo>,
@@ -62,6 +72,10 @@ impl App {
             .position(|t| t.name == config.theme.flavor)
             .unwrap_or(0);
         let theme = themes.get(index).cloned().unwrap();
+        let (ip_tx, ip_rx) = ip::spawn_ip_monitor(IpConfig {
+            enabled: config.general.wan_enabled,
+            url: config.general.wan_url.clone(),
+        });
         Self {
             snapshot: Snapshot::default(),
             history: History::new(120),
@@ -77,6 +91,14 @@ impl App {
             filtering: false,
             show_settings: false,
             settings_index: 0,
+            settings_editing: false,
+            wan_enabled: config.general.wan_enabled,
+            wan_url: config.general.wan_url.clone(),
+            wan_url_edit: String::new(),
+            private_ip: None,
+            wan_ip: None,
+            ip_tx: Some(ip_tx),
+            ip_rx,
             display: Vec::new(),
             scroll: 0,
             detail: None,
@@ -105,9 +127,20 @@ impl App {
             general: GeneralConfig {
                 interval_ms: self.interval_ms,
                 transparent: self.transparent,
+                wan_enabled: self.wan_enabled,
+                wan_url: self.wan_url.clone(),
             },
         };
         let _ = cfg.save();
+    }
+
+    fn send_ip_update(&self) {
+        if let Some(tx) = &self.ip_tx {
+            let _ = tx.send(IpCmd::Update(IpConfig {
+                enabled: self.wan_enabled,
+                url: self.wan_url.clone(),
+            }));
+        }
     }
 
     fn set_interval(&mut self, ms: u64, cmd_tx: &std::sync::mpsc::Sender<Command>) {
@@ -123,7 +156,7 @@ impl App {
     }
 
     fn settings_down(&mut self) {
-        if self.settings_index < 2 {
+        if self.settings_index < 4 {
             self.settings_index += 1;
         }
     }
@@ -139,6 +172,11 @@ impl App {
                 self.transparent = !self.transparent;
                 self.save_config();
             }
+            3 => {
+                self.wan_enabled = !self.wan_enabled;
+                self.save_config();
+                self.send_ip_update();
+            }
             _ => {}
         }
     }
@@ -153,6 +191,11 @@ impl App {
             2 => {
                 self.transparent = !self.transparent;
                 self.save_config();
+            }
+            3 => {
+                self.wan_enabled = !self.wan_enabled;
+                self.save_config();
+                self.send_ip_update();
             }
             _ => {}
         }
@@ -292,6 +335,12 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 app.settings_index,
                 app.interval_ms,
                 app.transparent,
+                app.wan_enabled,
+                app.private_ip.as_deref(),
+                app.wan_ip.as_deref(),
+                app.settings_editing,
+                &app.wan_url,
+                &app.wan_url_edit,
                 &mut app.proc_rect,
                 app.snapshot.processes.len(),
                 app.sort_key,
@@ -302,6 +351,8 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
 
         let mode = if app.filtering {
             Mode::Filtering
+        } else if app.settings_editing {
+            Mode::SettingsEdit
         } else if app.show_settings {
             Mode::Settings
         } else {
@@ -314,6 +365,10 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 app.snapshot = snap;
                 app.history.record(&app.snapshot);
                 app.record_proc_history();
+            }
+            while let Ok(state) = app.ip_rx.try_recv() {
+                app.private_ip = state.private;
+                app.wan_ip = state.wan;
             }
             app.refresh_display();
         }
@@ -330,11 +385,37 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
         }
 
         if app.show_settings {
+            if app.settings_editing {
+                match action {
+                    Action::FilterChar(c) => app.wan_url_edit.push(c),
+                    Action::FilterBackspace => {
+                        app.wan_url_edit.pop();
+                    }
+                    Action::FilterSubmit => {
+                        app.wan_url = app.wan_url_edit.clone();
+                        app.settings_editing = false;
+                        app.save_config();
+                        app.send_ip_update();
+                    }
+                    Action::FilterCancel => {
+                        app.settings_editing = false;
+                    }
+                    Action::Quit => break,
+                    _ => {}
+                }
+                continue;
+            }
             match action {
                 Action::SettingsUp => app.settings_up(),
                 Action::SettingsDown => app.settings_down(),
                 Action::SettingsDec => app.settings_dec(&cmd_tx),
                 Action::SettingsInc => app.settings_inc(&cmd_tx),
+                Action::SettingsActivate => {
+                    if app.settings_index == 4 {
+                        app.wan_url_edit = app.wan_url.clone();
+                        app.settings_editing = true;
+                    }
+                }
                 Action::Cancel | Action::OpenSettings | Action::Quit => app.show_settings = false,
                 _ => {}
             }

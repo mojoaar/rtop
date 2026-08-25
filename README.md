@@ -10,14 +10,16 @@ with [Catppuccin].
 
 ## Features
 
-- Live CPU (global + per-core), memory & swap, GPU, network I/O rates, and disk usage
+- Live CPU (global + per-core), memory & swap, GPU, network I/O rates (with
+  private/WAN IP in the header), and disk usage
 - Battery status, temperature sensors, and fan speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
   details popup (with CPU/memory history graphs), and process kill
 - Four Catppuccin flavors with runtime theme cycling and optional transparent background
 - Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average
 - Block-bar usage charts for memory and disk (colored by fullness)
-- In-app settings menu to change refresh rate, theme, and transparency live
+- In-app settings menu to change refresh rate, theme, transparency, and WAN IP
+  live
 - Config file for theme and refresh interval, overridable via CLI flags
 - Non-blocking data collection on a background thread — a slow sensor never janks the UI
 
@@ -95,8 +97,12 @@ are persisted to the config file:
 | Refresh     | `100`, `250`, `500`, `1000`, `2000`, `5000` ms    |
 | Theme       | `latte`, `frappe`, `macchiato`, `mocha`           |
 | Transparent | `on` / `off` (terminal background vs Catppuccin)  |
+| WAN IP      | `on` / `off` (fetch public IP via the URL below)  |
+| WAN URL     | endpoint returning your public IP (press `Enter` to edit) |
 
 The active refresh rate is shown in the footer next to the clock and uptime.
+When WAN IP is enabled, the Network panel header shows `private` and `wan`
+addresses (fetched with `curl` from the configured URL).
 
 ## Config
 
@@ -115,8 +121,10 @@ Format:
 flavor = "mocha"        # latte | frappe | macchiato | mocha
 
 [general]
-interval_ms = 1000      # sampling + render tick, in milliseconds
+interval_ms = 500       # sampling + render tick, in milliseconds
 transparent = true      # use the terminal's background (false = Catppuccin bg)
+wan_enabled = false     # fetch and display the public (WAN) IP
+wan_url = "https://echo.johansen.foo/api/ip"  # endpoint returning your public IP
 ```
 
 The file is created automatically when you cycle themes (`t`).

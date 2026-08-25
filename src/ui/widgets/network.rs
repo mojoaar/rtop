@@ -14,10 +14,14 @@ pub fn render(
     tx_spark: &[u64],
     total_received: u64,
     total_transmitted: u64,
+    private_ip: Option<&str>,
+    wan_ip: Option<&str>,
     theme: &Theme,
 ) {
+    let private = private_ip.unwrap_or("n/a");
+    let wan = wan_ip.unwrap_or("n/a");
     let block = Block::bordered()
-        .title(" Network ")
+        .title(format!(" Network · private {private} · wan {wan} "))
         .title_style(
             Style::default()
                 .fg(theme.colors.accent)

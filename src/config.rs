@@ -19,6 +19,8 @@ pub struct ThemeConfig {
 pub struct GeneralConfig {
     pub interval_ms: u64,
     pub transparent: bool,
+    pub wan_enabled: bool,
+    pub wan_url: String,
 }
 
 impl Default for Config {
@@ -32,8 +34,10 @@ impl Default for ThemeConfig {
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
-            interval_ms: 1000,
+            interval_ms: 500,
             transparent: true,
+            wan_enabled: false,
+            wan_url: "https://echo.johansen.foo/api/ip".into(),
         }
     }
 }
@@ -73,19 +77,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_are_mocha_1000() {
+    fn defaults_are_mocha_500() {
         let c = Config::default();
         assert_eq!(c.theme.flavor, "mocha");
-        assert_eq!(c.general.interval_ms, 1000);
+        assert_eq!(c.general.interval_ms, 500);
         assert!(c.general.transparent);
+        assert!(!c.general.wan_enabled);
+        assert_eq!(c.general.wan_url, "https://echo.johansen.foo/api/ip");
     }
 
     #[test]
     fn missing_fields_fall_back_to_defaults() {
         let c: Config = toml::from_str("[theme]\nflavor = \"latte\"\n").unwrap();
         assert_eq!(c.theme.flavor, "latte");
-        assert_eq!(c.general.interval_ms, 1000);
+        assert_eq!(c.general.interval_ms, 500);
         assert!(c.general.transparent);
+        assert!(!c.general.wan_enabled);
     }
 
     #[test]

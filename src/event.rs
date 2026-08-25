@@ -16,6 +16,7 @@ pub enum Action {
     SettingsDown,
     SettingsDec,
     SettingsInc,
+    SettingsActivate,
     FilterToggle,
     FilterChar(char),
     FilterBackspace,
@@ -34,6 +35,7 @@ pub enum Mode {
     Normal,
     Filtering,
     Settings,
+    SettingsEdit,
 }
 
 pub fn poll_action(timeout: std::time::Duration, mode: Mode) -> anyhow::Result<Action> {
@@ -49,11 +51,19 @@ pub fn poll_action(timeout: std::time::Duration, mode: Mode) -> anyhow::Result<A
                         _ => Ok(Action::None),
                     },
                     Mode::Settings => match key.code {
-                        KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => Ok(Action::Cancel),
+                        KeyCode::Esc | KeyCode::Char('q') => Ok(Action::Cancel),
+                        KeyCode::Enter => Ok(Action::SettingsActivate),
                         KeyCode::Up => Ok(Action::SettingsUp),
                         KeyCode::Down => Ok(Action::SettingsDown),
                         KeyCode::Left => Ok(Action::SettingsDec),
                         KeyCode::Right => Ok(Action::SettingsInc),
+                        _ => Ok(Action::None),
+                    },
+                    Mode::SettingsEdit => match key.code {
+                        KeyCode::Esc => Ok(Action::FilterCancel),
+                        KeyCode::Enter => Ok(Action::FilterSubmit),
+                        KeyCode::Backspace => Ok(Action::FilterBackspace),
+                        KeyCode::Char(c) => Ok(Action::FilterChar(c)),
                         _ => Ok(Action::None),
                     },
                     Mode::Normal => match key.code {

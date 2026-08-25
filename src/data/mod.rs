@@ -1,6 +1,7 @@
 pub mod battery_impl;
 pub mod format;
 pub mod history;
+pub mod ip;
 pub mod rate;
 pub mod snapshot;
 pub mod sysinfo_impl;

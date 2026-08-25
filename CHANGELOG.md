@@ -17,14 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Timezone in the footer clock.
 - In-app settings menu (`s`) to change refresh rate, theme, and transparency
   live, with the active sample rate shown in the footer.
+- Network panel header shows private and WAN IP addresses.
+- WAN IP toggle and editable WAN URL endpoint in the settings menu (fetched
+  via `curl`, no added dependencies).
 
 ### Changed
 - Battery state now shows friendly labels (charging / discharging / full /
   empty / on AC).
+- Default refresh interval changed to 500 ms.
 - Swap row is hidden when no swap is configured.
 - Disk usage text moved off the gauge bar for readability.
 - Memory and disk panels now use block-bar usage charts (█/░) colored by
   fullness, with high-contrast (non-white) labels.
+- Memory stats text now sits below a single-row bar (mirrors the GPU panel).
+- Disk and sensors panels are fixed-height; the Processes panel fills the
+  remaining space.
 - Sensors panel trimmed to battery, CPU/GPU temperature, and fans.
 - Help popup ASCII logo is now centered.
 

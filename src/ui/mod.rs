@@ -29,6 +29,12 @@ pub fn render(
     settings_index: usize,
     interval_ms: u64,
     transparent: bool,
+    wan_enabled: bool,
+    private_ip: Option<&str>,
+    wan_ip: Option<&str>,
+    settings_editing: bool,
+    wan_url: &str,
+    wan_url_edit: &str,
     proc_rect: &mut Rect,
     total: usize,
     sort_key: SortKey,
@@ -49,8 +55,8 @@ pub fn render(
             Constraint::Length(cpu_height),
             Constraint::Length(6),
             Constraint::Length(5),
-            Constraint::Min(5),
-            Constraint::Min(10),
+            Constraint::Length(5),
+            Constraint::Min(0),
             Constraint::Length(1),
         ])
         .areas(area);
@@ -73,6 +79,8 @@ pub fn render(
         &history.net_tx_series(),
         snapshot.net_total_received,
         snapshot.net_total_transmitted,
+        private_ip,
+        wan_ip,
         theme,
     );
     widgets::disk::render(frame, disk_area, &snapshot.disks, theme);
@@ -147,7 +155,18 @@ pub fn render(
         render_help(frame, area, theme);
     }
     if show_settings {
-        render_settings(frame, area, theme, settings_index, interval_ms, transparent);
+        render_settings(
+            frame,
+            area,
+            theme,
+            settings_index,
+            interval_ms,
+            transparent,
+            wan_enabled,
+            settings_editing,
+            wan_url,
+            wan_url_edit,
+        );
     }
 }
 
@@ -307,11 +326,22 @@ fn render_settings(
     index: usize,
     interval_ms: u64,
     transparent: bool,
+    wan_enabled: bool,
+    settings_editing: bool,
+    wan_url: &str,
+    wan_url_edit: &str,
 ) {
+    let url_value = if settings_editing {
+        format!("{wan_url_edit}|")
+    } else {
+        wan_url.to_string()
+    };
     let rows = [
         ("Refresh", format!("{}ms", interval_ms)),
         ("Theme", theme.name.clone()),
         ("Transparent", if transparent { "on".into() } else { "off".into() }),
+        ("WAN IP", if wan_enabled { "on".into() } else { "off".into() }),
+        ("WAN URL", url_value),
     ];
 
     let mut lines: Vec<Line> = rows
@@ -341,7 +371,7 @@ fn render_settings(
         .collect();
     lines.push(Line::from(""));
     lines.push(
-        Line::from("← / → change  ·  ↑ / ↓ select  ·  Esc close")
+        Line::from("← / → change  ·  ↑ / ↓ select  ·  Enter edit  ·  Esc close")
             .style(Style::default().fg(theme.colors.muted)),
     );
 
@@ -410,6 +440,12 @@ mod tests {
             0,
             1000,
             false,
+            false,
+            None,
+            None,
+            false,
+            "",
+            "",
             &mut proc_rect,
             snap.processes.len(),
             SortKey::Cpu,
