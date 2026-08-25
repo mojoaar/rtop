@@ -63,7 +63,7 @@ rtop --theme macchiato --interval 500
 | `c` / `m` / `p` / `n` | Sort processes by CPU / memory / PID / name |
 | `↑` / `↓`       | Move process selection                  |
 | `k`             | Kill the selected process               |
-| `f`             | Filter processes by name or PID         |
+| `f`             | Filter processes by name, user, or PID  |
 | `s`             | Open the settings menu                  |
 | `Enter`         | Show details for the selected process   |
 | `?`             | Show the help popup                     |
@@ -71,8 +71,8 @@ rtop --theme macchiato --interval 500
 | Mouse click     | Select the process under the cursor     |
 | Mouse scroll    | Move process selection                  |
 
-While filtering, type to match process names (case-insensitive) or PIDs, `Enter`
-to apply, `Esc` to cancel, `Backspace` to delete.
+While filtering, type to match process names (case-insensitive), usernames, or
+PIDs, `Enter` to apply, `Esc` to cancel, `Backspace` to delete.
 
 ## Themes
 

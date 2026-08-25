@@ -371,6 +371,11 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 app.wan_ip = state.wan;
             }
             app.refresh_display();
+            if let Some(d) = &app.detail {
+                if let Some(live) = app.display.iter().find(|p| p.pid == d.pid) {
+                    app.detail = Some(live.clone());
+                }
+            }
         }
 
         if app.show_help || app.detail.is_some() {

@@ -50,7 +50,9 @@ pub fn matches_filter(query: &str, p: &ProcessInfo) -> bool {
         return true;
     }
     let q = query.to_lowercase();
-    p.name.to_lowercase().contains(&q) || p.pid.to_string().contains(&q)
+    p.name.to_lowercase().contains(&q)
+        || p.user.to_lowercase().contains(&q)
+        || p.pid.to_string().contains(&q)
 }
 
 fn header_label(label: &str, key: Option<SortKey>, active: SortKey, dir: SortDir) -> String {
@@ -211,6 +213,14 @@ mod tests {
     fn matches_by_pid() {
         let proc = p(1234, "bash", 0.0, 0);
         assert!(matches_filter("123", &proc));
+    }
+
+    #[test]
+    fn matches_by_user_case_insensitive() {
+        let mut proc = p(123, "bash", 0.0, 0);
+        proc.user = "mojoaar".into();
+        assert!(matches_filter("mojoaar", &proc));
+        assert!(matches_filter("MOJO", &proc));
     }
 
     #[test]

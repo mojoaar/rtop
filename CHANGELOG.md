@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Process filter now also matches usernames (in addition to name and PID).
+
 ### Changed
 - Help popup logo replaced with a hand-crafted block-letter `rtop` wordmark.
+
+### Fixed
+- Process details popup now updates CPU, memory, and other stats live while
+  open (previously frozen at the time the popup was opened).
 
 ## [0.3.0] - 2026-08-25
 
