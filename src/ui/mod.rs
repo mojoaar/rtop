@@ -68,9 +68,22 @@ pub fn render(
             },
             theme,
         );
+        let (footer_text, footer_color) = if filtering {
+            (format!("filter: {}|", filter), theme.colors.warning)
+        } else if !filter.is_empty() {
+            (
+                format!("filter: {} · z back · q quit · Enter details · ? help", filter),
+                theme.colors.warning,
+            )
+        } else {
+            (
+                "z back · q quit · c/m/p/n sort · ↑↓ select · k kill · f filter · s settings · Enter details · ? help"
+                    .to_string(),
+                theme.colors.muted,
+            )
+        };
         frame.render_widget(
-            Paragraph::new("z back · q quit · ↑↓ select · Enter details · ? help")
-                .style(Style::default().fg(theme.colors.muted)),
+            Paragraph::new(footer_text).style(Style::default().fg(footer_color)),
             help_area,
         );
         if let Some(p) = detail {
