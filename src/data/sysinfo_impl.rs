@@ -86,11 +86,15 @@ impl MetricsProvider for SysinfoProvider {
             swap_used: self.system.used_swap(),
         };
 
+        let mut net_total_received: u64 = 0;
+        let mut net_total_transmitted: u64 = 0;
         let network: Vec<NetRate> = networks
             .iter()
             .map(|(name, data)| {
                 let rx = Self::diff_map(&mut self.prev_net_rx, name, data.total_received(), elapsed);
                 let tx = Self::diff_map(&mut self.prev_net_tx, name, data.total_transmitted(), elapsed);
+                net_total_received = net_total_received.saturating_add(data.total_received());
+                net_total_transmitted = net_total_transmitted.saturating_add(data.total_transmitted());
                 NetRate {
                     name: name.clone(),
                     rx_bytes_per_sec: rx,
@@ -129,12 +133,12 @@ impl MetricsProvider for SysinfoProvider {
                     .map(|u| u.name().to_string())
                     .unwrap_or_default();
                 #[cfg(target_os = "macos")]
-                let cpu_time =
-                    crate::platform::cpu_time::process_cpu_time(pid.as_u32()).unwrap_or_else(|| {
-                        p.run_time()
-                    });
+                let (cpu_time, threads) =
+                    crate::platform::cpu_time::process_stats(pid.as_u32())
+                        .map(|s| (s.cpu_time_secs, (s.threads > 0).then_some(s.threads)))
+                        .unwrap_or_else(|| (p.run_time(), p.tasks().map(|t| t.len())));
                 #[cfg(not(target_os = "macos"))]
-                let cpu_time = p.run_time();
+                let (cpu_time, threads) = (p.run_time(), p.tasks().map(|t| t.len()));
                 ProcessInfo {
                     pid: pid.as_u32(),
                     name: p.name().to_string_lossy().to_string(),
@@ -143,7 +147,7 @@ impl MetricsProvider for SysinfoProvider {
                     status: format!("{:?}", p.status()),
                     user,
                     cpu_time,
-                    threads: p.tasks().map(|t| t.len()),
+                    threads,
                 }
             })
             .collect();
@@ -162,6 +166,8 @@ impl MetricsProvider for SysinfoProvider {
             cpu,
             memory,
             network,
+            net_total_received,
+            net_total_transmitted,
             disks: disks_usage,
             processes,
             components: components_vec,

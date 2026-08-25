@@ -86,6 +86,34 @@ impl History {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ProcessHistory {
+    cpu: RingBuffer<f32>,
+    mem: RingBuffer<u64>,
+}
+
+impl ProcessHistory {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            cpu: RingBuffer::new(capacity),
+            mem: RingBuffer::new(capacity),
+        }
+    }
+
+    pub fn record(&mut self, cpu: f32, mem: u64) {
+        self.cpu.push(cpu);
+        self.mem.push(mem);
+    }
+
+    pub fn cpu_series(&self) -> Vec<u64> {
+        self.cpu.iter().map(|v| *v as u64).collect()
+    }
+
+    pub fn mem_series(&self) -> Vec<u64> {
+        self.mem.iter().copied().collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,5 +186,14 @@ mod tests {
         h.record(&snap_with_cpu(20.0));
         h.record(&snap_with_cpu(30.0));
         assert_eq!(h.cpu_series(), vec![20, 30]);
+    }
+
+    #[test]
+    fn process_history_records_series() {
+        let mut ph = ProcessHistory::new(3);
+        ph.record(10.0, 100);
+        ph.record(20.0, 200);
+        assert_eq!(ph.cpu_series(), vec![10, 20]);
+        assert_eq!(ph.mem_series(), vec![100, 200]);
     }
 }

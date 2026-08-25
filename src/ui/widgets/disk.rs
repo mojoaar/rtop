@@ -3,7 +3,7 @@ use crate::data::snapshot::DiskUsage;
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Gauge};
+use ratatui::widgets::{Block, Gauge, Paragraph};
 use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme) {
@@ -41,6 +41,8 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
         } else {
             theme.colors.danger
         };
+        let [text_area, gauge_area] =
+            Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)]).areas(*a);
         let label = format!(
             "{}  used {} · free {}  ({:.0}%)",
             d.mount_point,
@@ -49,11 +51,14 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
             pct
         );
         frame.render_widget(
+            Paragraph::new(label).style(Style::default().fg(color)),
+            text_area,
+        );
+        frame.render_widget(
             Gauge::default()
                 .gauge_style(Style::default().fg(color))
-                .ratio(ratio.clamp(0.0, 1.0))
-                .label(label),
-            *a,
+                .ratio(ratio.clamp(0.0, 1.0)),
+            gauge_area,
         );
     }
 }

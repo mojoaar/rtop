@@ -1,6 +1,11 @@
 use std::mem::size_of;
 
-pub fn process_cpu_time(pid: u32) -> Option<u64> {
+pub struct ProcessStats {
+    pub cpu_time_secs: u64,
+    pub threads: usize,
+}
+
+pub fn process_stats(pid: u32) -> Option<ProcessStats> {
     let mut info: libc::proc_taskinfo = unsafe { std::mem::zeroed() };
     let ret = unsafe {
         libc::proc_pidinfo(
@@ -15,5 +20,12 @@ pub fn process_cpu_time(pid: u32) -> Option<u64> {
         return None;
     }
     let nanos = info.pti_total_user.saturating_add(info.pti_total_system);
-    Some(nanos / 1_000_000_000)
+    Some(ProcessStats {
+        cpu_time_secs: nanos / 1_000_000_000,
+        threads: if info.pti_threadnum >= 0 {
+            info.pti_threadnum as usize
+        } else {
+            0
+        },
+    })
 }

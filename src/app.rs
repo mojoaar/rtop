@@ -1,13 +1,14 @@
 use crate::config::{Config, GeneralConfig, ThemeConfig};
-use crate::data::history::History;
+use crate::data::history::{History, ProcessHistory};
 use crate::data::snapshot::ProcessInfo;
 use crate::data::{self, snapshot::Snapshot, Command};
 use crate::event::{poll_action, Action};
 use crate::theme;
 use crate::ui;
-use crate::ui::widgets::processes::{self, SortKey};
+use crate::ui::widgets::processes::{self, SortDir, SortKey};
 use anyhow::Result;
 use ratatui::layout::Rect;
+use std::collections::HashMap;
 
 pub struct App {
     snapshot: Snapshot,
@@ -16,6 +17,7 @@ pub struct App {
     themes: Vec<theme::Theme>,
     theme_index: usize,
     sort_key: SortKey,
+    sort_dir: SortDir,
     selected: Option<usize>,
     interval_ms: u64,
     transparent: bool,
@@ -26,6 +28,7 @@ pub struct App {
     detail: Option<ProcessInfo>,
     show_help: bool,
     proc_rect: Rect,
+    proc_history: HashMap<u32, ProcessHistory>,
 }
 
 impl App {
@@ -43,6 +46,7 @@ impl App {
             themes,
             theme_index: index,
             sort_key: SortKey::Cpu,
+            sort_dir: SortDir::Desc,
             selected: None,
             interval_ms: config.general.interval_ms,
             transparent: config.general.transparent,
@@ -53,6 +57,7 @@ impl App {
             detail: None,
             show_help: false,
             proc_rect: Rect::default(),
+            proc_history: HashMap::new(),
         }
     }
 
@@ -77,7 +82,7 @@ impl App {
             .filter(|p| processes::matches_filter(&self.filter, p))
             .cloned()
             .collect();
-        processes::sort(&mut self.display, self.sort_key);
+        processes::sort(&mut self.display, self.sort_key, self.sort_dir);
         if let Some(i) = self.selected {
             if i >= self.display.len() {
                 self.selected = None;
@@ -130,6 +135,18 @@ impl App {
             _ => len - 1,
         });
         self.ensure_visible();
+    }
+
+    fn record_proc_history(&mut self) {
+        let mut alive = std::collections::HashSet::new();
+        for p in &self.snapshot.processes {
+            alive.insert(p.pid);
+            self.proc_history
+                .entry(p.pid)
+                .or_insert_with(|| ProcessHistory::new(120))
+                .record(p.cpu_usage, p.memory_bytes);
+        }
+        self.proc_history.retain(|pid, _| alive.contains(pid));
     }
 
     fn click(&mut self, col: u16, row: u16) {
@@ -189,6 +206,10 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 app.show_help,
                 app.transparent,
                 &mut app.proc_rect,
+                app.snapshot.processes.len(),
+                app.sort_key,
+                app.sort_dir,
+                &app.proc_history,
             )
         })?;
 
@@ -198,6 +219,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             while let Ok(snap) = rx.try_recv() {
                 app.snapshot = snap;
                 app.history.record(&app.snapshot);
+                app.record_proc_history();
             }
             app.refresh_display();
         }
@@ -240,7 +262,15 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             Action::Quit => break,
             Action::NextTheme => app.cycle_theme(),
             Action::SortBy(key) => {
-                app.sort_key = key;
+                if app.sort_key == key {
+                    app.sort_dir = match app.sort_dir {
+                        SortDir::Asc => SortDir::Desc,
+                        SortDir::Desc => SortDir::Asc,
+                    };
+                } else {
+                    app.sort_key = key;
+                    app.sort_dir = processes::default_dir(key);
+                }
                 app.refresh_display();
             }
             Action::MoveUp => app.move_up(),

@@ -1,14 +1,16 @@
 pub mod widgets;
 
 use crate::data::format::{format_duration_secs, human_bytes};
-use crate::data::history::History;
+use crate::data::history::{History, ProcessHistory};
 use crate::data::snapshot::{ProcessInfo, Snapshot};
 use crate::theme::Theme;
+use crate::ui::widgets::processes::{SortDir, SortKey};
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Clear, Paragraph};
+use ratatui::widgets::{Block, Clear, Paragraph, Sparkline};
 use ratatui::Frame;
+use std::collections::HashMap;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(
@@ -25,6 +27,10 @@ pub fn render(
     show_help: bool,
     transparent: bool,
     proc_rect: &mut Rect,
+    total: usize,
+    sort_key: SortKey,
+    sort_dir: SortDir,
+    proc_history: &HashMap<u32, ProcessHistory>,
 ) {
     let area = frame.area();
 
@@ -33,11 +39,13 @@ pub fn render(
         frame.render_widget(bg, area);
     }
 
+    let core_rows = snapshot.cpu.per_core.len().max(1) as u16;
+    let cpu_height = (core_rows + 2).clamp(6, 14);
     let [cpu_area, mem_gpu_area, net_area, disk_sensors_area, proc_area, help_area] =
         Layout::vertical([
+            Constraint::Length(cpu_height),
             Constraint::Length(6),
-            Constraint::Length(6),
-            Constraint::Length(4),
+            Constraint::Length(5),
             Constraint::Min(5),
             Constraint::Min(10),
             Constraint::Length(1),
@@ -60,6 +68,8 @@ pub fn render(
         &snapshot.network,
         &history.net_rx_series(),
         &history.net_tx_series(),
+        snapshot.net_total_received,
+        snapshot.net_total_transmitted,
         theme,
     );
     widgets::disk::render(frame, disk_area, &snapshot.disks, theme);
@@ -71,10 +81,20 @@ pub fn render(
         &snapshot.fans,
         theme,
     );
-    widgets::processes::render(frame, proc_area, processes, selected, scroll, theme);
+    widgets::processes::render(
+        frame,
+        proc_area,
+        processes,
+        selected,
+        scroll,
+        total,
+        sort_key,
+        sort_dir,
+        theme,
+    );
 
     let [keys_area, clock_area] =
-        Layout::horizontal([Constraint::Min(0), Constraint::Length(24)]).areas(help_area);
+        Layout::horizontal([Constraint::Min(0), Constraint::Length(32)]).areas(help_area);
 
     let (footer, footer_style) = if filtering {
         (format!("filter: {filter}|"), Style::default().fg(theme.colors.warning))
@@ -92,11 +112,22 @@ pub fn render(
     };
     frame.render_widget(Paragraph::new(footer).style(footer_style), keys_area);
 
-    let clock = format!(
-        "{} · up {}",
-        chrono::Local::now().format("%H:%M:%S"),
-        format_duration_secs(snapshot.uptime)
-    );
+    let now = chrono::Local::now();
+    let tz = now.format("%Z").to_string();
+    let clock = if tz.is_empty() {
+        format!(
+            "{} · up {}",
+            now.format("%H:%M:%S"),
+            format_duration_secs(snapshot.uptime)
+        )
+    } else {
+        format!(
+            "{} {} · up {}",
+            tz,
+            now.format("%H:%M:%S"),
+            format_duration_secs(snapshot.uptime)
+        )
+    };
     frame.render_widget(
         Paragraph::new(clock)
             .style(Style::default().fg(theme.colors.muted))
@@ -105,14 +136,20 @@ pub fn render(
     );
 
     if let Some(p) = detail {
-        render_detail(frame, area, p, theme);
+        render_detail(frame, area, p, proc_history.get(&p.pid), theme);
     }
     if show_help {
         render_help(frame, area, theme);
     }
 }
 
-fn render_detail(frame: &mut Frame, area: Rect, p: &ProcessInfo, theme: &Theme) {
+fn render_detail(
+    frame: &mut Frame,
+    area: Rect,
+    p: &ProcessInfo,
+    history: Option<&ProcessHistory>,
+    theme: &Theme,
+) {
     let lines = vec![
         Line::from(format!("PID: {}", p.pid)),
         Line::from(format!("Name: {}", p.name)),
@@ -128,8 +165,9 @@ fn render_detail(frame: &mut Frame, area: Rect, p: &ProcessInfo, theme: &Theme) 
         )),
         Line::from(format!("State: {}", p.status)),
     ];
-    let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
-    let height = lines.len() as u16 + 2;
+    let info_w = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
+    let width = info_w.max(44);
+    let height = lines.len() as u16 + 2 + 2 + 2;
     let popup = centered_rect(width, height, area);
     let block = Block::bordered()
         .title(" Process ")
@@ -142,9 +180,46 @@ fn render_detail(frame: &mut Frame, area: Rect, p: &ProcessInfo, theme: &Theme) 
     frame.render_widget(Clear, popup);
     let inner = block.inner(popup);
     frame.render_widget(block, popup);
+
+    let [info_area, cpu_spark_area, mem_spark_area] = Layout::vertical([
+        Constraint::Length(lines.len() as u16),
+        Constraint::Length(1),
+        Constraint::Length(1),
+    ])
+    .areas(inner);
+
     frame.render_widget(
         Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
-        inner,
+        info_area,
+    );
+
+    let cpu_series = history.map(|h| h.cpu_series()).unwrap_or_default();
+    let [cpu_label, cpu_spark] =
+        Layout::horizontal([Constraint::Length(12), Constraint::Min(0)]).areas(cpu_spark_area);
+    frame.render_widget(
+        Paragraph::new("CPU history").style(Style::default().fg(theme.colors.muted)),
+        cpu_label,
+    );
+    frame.render_widget(
+        Sparkline::default()
+            .data(cpu_series)
+            .max(100)
+            .style(Style::default().fg(theme.colors.accent)),
+        cpu_spark,
+    );
+
+    let mem_series = history.map(|h| h.mem_series()).unwrap_or_default();
+    let [mem_label, mem_spark] =
+        Layout::horizontal([Constraint::Length(12), Constraint::Min(0)]).areas(mem_spark_area);
+    frame.render_widget(
+        Paragraph::new("Mem history").style(Style::default().fg(theme.colors.muted)),
+        mem_label,
+    );
+    frame.render_widget(
+        Sparkline::default()
+            .data(mem_series)
+            .style(Style::default().fg(theme.colors.success)),
+        mem_spark,
     );
 }
 
@@ -170,9 +245,19 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         ("mouse", "click = select · scroll = move"),
     ];
 
+    let content_width = keys
+        .iter()
+        .map(|(_, a)| 10 + a.len())
+        .max()
+        .unwrap_or(18)
+        .max(18);
+
     let mut lines: Vec<Line> = banner
         .iter()
-        .map(|b| Line::from(*b).style(Style::default().fg(theme.colors.accent)))
+        .map(|b| {
+            Line::from(format!("{:^width$}", b, width = content_width))
+                .style(Style::default().fg(theme.colors.accent))
+        })
         .collect();
     lines.push(Line::from(""));
 
@@ -234,6 +319,7 @@ mod tests {
 
     fn draw(frame: &mut Frame, snap: &Snapshot, t: &Theme, history: &History) {
         let mut proc_rect = Rect::default();
+        let proc_history = std::collections::HashMap::new();
         render(
             frame,
             snap,
@@ -248,6 +334,10 @@ mod tests {
             false,
             false,
             &mut proc_rect,
+            snap.processes.len(),
+            SortKey::Cpu,
+            SortDir::Desc,
+            &proc_history,
         );
     }
 

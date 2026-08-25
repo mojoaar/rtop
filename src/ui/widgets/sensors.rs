@@ -7,6 +7,29 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
+const MAX_COMPONENTS: usize = 4;
+
+pub fn selected_components(components: &[ComponentInfo], max: usize) -> Vec<&ComponentInfo> {
+    let is_priority = |c: &ComponentInfo| {
+        let l = c.label.to_lowercase();
+        l.contains("cpu") || l.contains("gpu") || l.contains("graphic")
+    };
+    let mut out: Vec<&ComponentInfo> = Vec::new();
+    for c in components.iter().filter(|c| is_priority(c)) {
+        if out.len() >= max {
+            break;
+        }
+        out.push(c);
+    }
+    for c in components.iter().filter(|c| !is_priority(c)) {
+        if out.len() >= max {
+            break;
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub fn render(
     frame: &mut Frame,
     area: Rect,
@@ -39,11 +62,16 @@ pub fn render(
     } else {
         lines.push(Line::from("Battery: n/a"));
     }
-    for c in components {
+
+    let shown = selected_components(components, MAX_COMPONENTS);
+    for c in &shown {
         match c.temperature_c {
             Some(t) => lines.push(Line::from(format!("{}: {:.1}°C", c.label, t))),
             None => lines.push(Line::from(format!("{}: n/a", c.label))),
         }
+    }
+    if components.len() > shown.len() {
+        lines.push(Line::from(format!("+{} more", components.len() - shown.len())));
     }
     for f in fans {
         lines.push(Line::from(format!("{}: {} RPM", f.label, f.rpm)));
@@ -53,4 +81,34 @@ pub fn render(
         Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
         inner,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn c(label: &str) -> ComponentInfo {
+        ComponentInfo { label: label.into(), temperature_c: Some(50.0) }
+    }
+
+    #[test]
+    fn prefers_cpu_gpu_labels() {
+        let comps = vec![c("PMU tdie"), c("CPU Proximity"), c("GPU"), c("Battery")];
+        let sel = selected_components(&comps, 2);
+        assert_eq!(sel.len(), 2);
+        assert_eq!(sel[0].label, "CPU Proximity");
+        assert_eq!(sel[1].label, "GPU");
+    }
+
+    #[test]
+    fn caps_at_max() {
+        let comps = vec![c("a"), c("b"), c("c"), c("d"), c("e")];
+        let sel = selected_components(&comps, 3);
+        assert_eq!(sel.len(), 3);
+    }
+
+    #[test]
+    fn empty_is_ok() {
+        assert!(selected_components(&[], 4).is_empty());
+    }
 }

@@ -8,6 +8,8 @@ pub struct Snapshot {
     pub cpu: CpuSnapshot,
     pub memory: MemorySnapshot,
     pub network: Vec<NetRate>,
+    pub net_total_received: u64,
+    pub net_total_transmitted: u64,
     pub disks: Vec<DiskUsage>,
     pub processes: Vec<ProcessInfo>,
     pub components: Vec<ComponentInfo>,

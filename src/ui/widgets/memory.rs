@@ -18,6 +18,34 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
+    let mem_ratio = if mem.total == 0 {
+        0.0
+    } else {
+        mem.used as f64 / mem.total as f64
+    };
+
+    if mem.swap_total == 0 {
+        let [mem_text, mem_bar] =
+            Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(inner);
+        frame.render_widget(
+            Paragraph::new(format!(
+                "Mem: {} / {} ({:.0}%)",
+                human_bytes(mem.used),
+                human_bytes(mem.total),
+                mem_ratio * 100.0
+            ))
+            .style(Style::default().fg(theme.colors.text)),
+            mem_text,
+        );
+        frame.render_widget(
+            Gauge::default()
+                .gauge_style(Style::default().fg(theme.colors.success))
+                .ratio(mem_ratio.clamp(0.0, 1.0)),
+            mem_bar,
+        );
+        return;
+    }
+
     let [mem_text, mem_bar, swap_text, swap_bar] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
@@ -26,11 +54,6 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
     ])
     .areas(inner);
 
-    let mem_ratio = if mem.total == 0 {
-        0.0
-    } else {
-        mem.used as f64 / mem.total as f64
-    };
     frame.render_widget(
         Paragraph::new(format!(
             "Mem: {} / {} ({:.0}%)",
@@ -48,11 +71,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
         mem_bar,
     );
 
-    let swap_ratio = if mem.swap_total == 0 {
-        0.0
-    } else {
-        mem.swap_used as f64 / mem.swap_total as f64
-    };
+    let swap_ratio = mem.swap_used as f64 / mem.swap_total as f64;
     frame.render_widget(
         Paragraph::new(format!(
             "Swap: {} / {}",

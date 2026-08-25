@@ -3,9 +3,7 @@ use crate::data::snapshot::ProcessInfo;
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{
-    Block, Cell, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
-};
+use ratatui::widgets::{Block, Cell, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table};
 use ratatui::Frame;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -16,12 +14,34 @@ pub enum SortKey {
     Name,
 }
 
-pub fn sort(processes: &mut Vec<ProcessInfo>, key: SortKey) {
-    processes.sort_by(|a, b| match key {
-        SortKey::Cpu => b.cpu_usage.partial_cmp(&a.cpu_usage).unwrap_or(std::cmp::Ordering::Equal),
-        SortKey::Memory => b.memory_bytes.cmp(&a.memory_bytes),
-        SortKey::Pid => a.pid.cmp(&b.pid),
-        SortKey::Name => a.name.cmp(&b.name),
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SortDir {
+    Asc,
+    Desc,
+}
+
+pub fn default_dir(key: SortKey) -> SortDir {
+    match key {
+        SortKey::Cpu | SortKey::Memory => SortDir::Desc,
+        SortKey::Pid | SortKey::Name => SortDir::Asc,
+    }
+}
+
+pub fn sort(processes: &mut Vec<ProcessInfo>, key: SortKey, dir: SortDir) {
+    processes.sort_by(|a, b| {
+        let ord = match key {
+            SortKey::Cpu => a
+                .cpu_usage
+                .partial_cmp(&b.cpu_usage)
+                .unwrap_or(std::cmp::Ordering::Equal),
+            SortKey::Memory => a.memory_bytes.cmp(&b.memory_bytes),
+            SortKey::Pid => a.pid.cmp(&b.pid),
+            SortKey::Name => a.name.cmp(&b.name),
+        };
+        match dir {
+            SortDir::Asc => ord,
+            SortDir::Desc => ord.reverse(),
+        }
     });
 }
 
@@ -33,16 +53,31 @@ pub fn matches_filter(query: &str, p: &ProcessInfo) -> bool {
     p.name.to_lowercase().contains(&q) || p.pid.to_string().contains(&q)
 }
 
+fn header_label(label: &str, key: Option<SortKey>, active: SortKey, dir: SortDir) -> String {
+    if key == Some(active) {
+        let arrow = match dir {
+            SortDir::Asc => "↑",
+            SortDir::Desc => "↓",
+        };
+        format!("{label}{arrow}")
+    } else {
+        label.to_string()
+    }
+}
+
 pub fn render(
     frame: &mut Frame,
     area: Rect,
     processes: &[ProcessInfo],
     selected: Option<usize>,
     scroll: usize,
+    total: usize,
+    sort_key: SortKey,
+    sort_dir: SortDir,
     theme: &Theme,
 ) {
     let block = Block::bordered()
-        .title(" Processes ")
+        .title(format!(" Processes · {} total ", total))
         .title_style(
             Style::default()
                 .fg(theme.colors.accent)
@@ -64,8 +99,16 @@ pub fn render(
         Constraint::Length(9),
         Constraint::Length(5),
     ];
-    let header = Row::new(vec!["PID", "USER", "NAME", "CPU%", "MEM", "TIME", "THR"])
-        .style(Style::default().fg(theme.colors.accent));
+    let header = Row::new(vec![
+        header_label("PID", Some(SortKey::Pid), sort_key, sort_dir),
+        header_label("USER", None, sort_key, sort_dir),
+        header_label("NAME", Some(SortKey::Name), sort_key, sort_dir),
+        header_label("CPU%", Some(SortKey::Cpu), sort_key, sort_dir),
+        header_label("MEM", Some(SortKey::Memory), sort_key, sort_dir),
+        header_label("TIME", None, sort_key, sort_dir),
+        header_label("THR", None, sort_key, sort_dir),
+    ])
+    .style(Style::default().fg(theme.colors.accent));
 
     let scroll = scroll.min(processes.len().saturating_sub(1));
     let visible = (table_area.height as usize).saturating_sub(1);
@@ -130,16 +173,31 @@ mod tests {
     #[test]
     fn sorts_by_cpu_desc() {
         let mut v = vec![p(1, "a", 10.0, 0), p(2, "b", 50.0, 0), p(3, "c", 30.0, 0)];
-        sort(&mut v, SortKey::Cpu);
+        sort(&mut v, SortKey::Cpu, SortDir::Desc);
         assert_eq!(v[0].pid, 2);
         assert_eq!(v[2].pid, 1);
     }
 
     #[test]
+    fn sorts_by_cpu_asc() {
+        let mut v = vec![p(1, "a", 10.0, 0), p(2, "b", 50.0, 0), p(3, "c", 30.0, 0)];
+        sort(&mut v, SortKey::Cpu, SortDir::Asc);
+        assert_eq!(v[0].pid, 1);
+        assert_eq!(v[2].pid, 2);
+    }
+
+    #[test]
     fn sorts_by_pid_asc() {
         let mut v = vec![p(9, "a", 0.0, 0), p(1, "b", 0.0, 0)];
-        sort(&mut v, SortKey::Pid);
+        sort(&mut v, SortKey::Pid, SortDir::Asc);
         assert_eq!(v[0].pid, 1);
+    }
+
+    #[test]
+    fn sorts_by_name_desc() {
+        let mut v = vec![p(1, "alpha", 0.0, 0), p(2, "zebra", 0.0, 0)];
+        sort(&mut v, SortKey::Name, SortDir::Desc);
+        assert_eq!(v[0].name, "zebra");
     }
 
     #[test]

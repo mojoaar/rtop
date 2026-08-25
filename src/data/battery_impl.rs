@@ -16,7 +16,14 @@ pub fn read_battery() -> Option<BatteryInfo> {
         let now = battery.energy().value as f32;
         total_capacity += cap;
         sum_capacity += now;
-        state = format!("{:?}", battery.state());
+        state = match battery.state() {
+            battery::State::Charging => "charging",
+            battery::State::Discharging => "discharging",
+            battery::State::Full => "full",
+            battery::State::Empty => "empty",
+            _ => "on AC",
+        }
+        .to_string();
         time_to_full = battery.time_to_full().map(|t| t.value as u64);
         time_to_empty = battery.time_to_empty().map(|t| t.value as u64);
     }

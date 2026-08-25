@@ -1,7 +1,7 @@
-use crate::data::format::human_rate;
+use crate::data::format::{human_bytes, human_rate};
 use crate::data::snapshot::NetRate;
 use crate::theme::Theme;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Paragraph, Sparkline};
 use ratatui::Frame;
@@ -12,6 +12,8 @@ pub fn render(
     network: &[NetRate],
     rx_spark: &[u64],
     tx_spark: &[u64],
+    total_received: u64,
+    total_transmitted: u64,
     theme: &Theme,
 ) {
     let block = Block::bordered()
@@ -25,8 +27,12 @@ pub fn render(
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let [down_area, up_area] =
-        Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(inner);
+    let [down_area, up_area, total_area] = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+    ])
+    .areas(inner);
 
     let total_rx: f64 = network.iter().map(|n| n.rx_bytes_per_sec).sum();
     let total_tx: f64 = network.iter().map(|n| n.tx_bytes_per_sec).sum();
@@ -57,5 +63,16 @@ pub fn render(
             .data(tx_spark)
             .style(Style::default().fg(theme.colors.warning)),
         up_spark,
+    );
+
+    frame.render_widget(
+        Paragraph::new(format!(
+            "total ↓ {} · ↑ {}",
+            human_bytes(total_received),
+            human_bytes(total_transmitted)
+        ))
+        .style(Style::default().fg(theme.colors.muted))
+        .alignment(Alignment::Right),
+        total_area,
     );
 }

@@ -2,12 +2,17 @@ use crate::data::snapshot::CpuSnapshot;
 use crate::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{BarChart, Block, Gauge, Paragraph, Sparkline};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline};
 use ratatui::Frame;
 
 pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], theme: &Theme) {
+    let title = match cpu.load_avg {
+        Some(l) => format!(" CPU · load: {:.2} {:.2} {:.2} ", l[0], l[1], l[2]),
+        None => " CPU ".to_string(),
+    };
     let block = Block::bordered()
-        .title(" CPU ")
+        .title(title)
         .title_style(
             Style::default()
                 .fg(theme.colors.accent)
@@ -17,13 +22,18 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let [left_area, right_area] =
-        Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(inner);
+    let [left_area, _gap, right_area] = Layout::horizontal([
+        Constraint::Ratio(1, 2),
+        Constraint::Length(2),
+        Constraint::Ratio(1, 2),
+    ])
+    .areas(inner);
 
-    let [gauge_area, spark_area, info_area] = Layout::vertical([
+    let [gauge_area, spark_area, _spacer, info_area] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
-        Constraint::Min(0),
+        Constraint::Length(1),
+        Constraint::Length(1),
     ])
     .areas(left_area);
 
@@ -49,12 +59,6 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
             info.push_str(&format!(" @ {:.1} GHz", cpu.frequency_mhz as f64 / 1000.0));
         }
     }
-    if let Some(load) = cpu.load_avg {
-        if !info.is_empty() {
-            info.push_str("  ·  ");
-        }
-        info.push_str(&format!("load: {:.2} {:.2} {:.2}", load[0], load[1], load[2]));
-    }
     if !info.is_empty() {
         frame.render_widget(
             Paragraph::new(info).style(Style::default().fg(theme.colors.muted)),
@@ -62,22 +66,21 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
         );
     }
 
-    let labels: Vec<String> = cpu
+    let bar_width = right_area.width.saturating_sub(9) as usize;
+    let lines: Vec<Line> = cpu
         .per_core
         .iter()
-        .map(|u| format!("{u:.0}%"))
-        .collect();
-    let data: Vec<(&str, u64)> = labels
-        .iter()
-        .zip(cpu.per_core.iter())
-        .map(|(l, u)| (l.as_str(), *u as u64))
+        .enumerate()
+        .map(|(i, u)| Line::from(format!("{:>2} {} {:>4.0}%", i, bar(*u, bar_width), u)))
         .collect();
     frame.render_widget(
-        BarChart::default()
-            .data(&data)
-            .bar_width(2)
-            .bar_gap(1)
-            .bar_style(Style::default().fg(theme.colors.accent)),
+        Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
         right_area,
     );
+}
+
+fn bar(pct: f32, width: usize) -> String {
+    let width = width.max(1);
+    let filled = ((pct.clamp(0.0, 100.0) / 100.0) * width as f32).round() as usize;
+    format!("{:<width$}", "█".repeat(filled.min(width)), width = width)
 }
