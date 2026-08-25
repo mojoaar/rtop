@@ -2,13 +2,13 @@ use crate::data::format::human_bytes;
 use crate::data::snapshot::MemorySnapshot;
 use crate::theme::Theme;
 use crate::ui::widgets::{block_bar, fullness_color};
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph};
+use ratatui::widgets::{Block, Paragraph, Sparkline};
 use ratatui::Frame;
 
-pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme) {
+pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64], theme: &Theme) {
     let block = Block::bordered()
         .title(" Memory ")
         .title_style(
@@ -32,25 +32,41 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
 
     let has_swap = mem.swap_total > 0;
     let constraints: Vec<Constraint> = if has_swap {
-        vec![Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)]
+        vec![
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ]
     } else {
-        vec![Constraint::Length(1), Constraint::Length(1)]
+        vec![Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)]
     };
     let areas = Layout::vertical(constraints).split(inner);
 
     frame.render_widget(
-        Paragraph::new(bar.clone()).style(Style::default().fg(color)),
+        Paragraph::new(bar).style(Style::default().fg(color)),
         areas[0],
     );
 
-    let values = Line::from(vec![
-        Span::styled("used ", Style::default().fg(theme.colors.muted)),
-        Span::styled(human_bytes(mem.used), Style::default().fg(color)),
-        Span::styled(" · free ", Style::default().fg(theme.colors.muted)),
-        Span::styled(human_bytes(free), Style::default().fg(color)),
-        Span::styled(format!(" · {:.0}%", pct), Style::default().fg(color)),
-    ]);
-    frame.render_widget(Paragraph::new(values), areas[1]);
+    frame.render_widget(
+        Sparkline::default()
+            .data(spark)
+            .style(Style::default().fg(color)),
+        areas[1],
+    );
+
+    let values = format!(
+        "used {} · free {} · {:.0}%",
+        human_bytes(mem.used),
+        human_bytes(free),
+        pct
+    );
+    frame.render_widget(
+        Paragraph::new(values)
+            .style(Style::default().fg(theme.colors.muted))
+            .alignment(Alignment::Right),
+        areas[2],
+    );
 
     if has_swap {
         let swap_line = Line::from(vec![
@@ -64,6 +80,9 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, theme: &Theme
                 Style::default().fg(theme.colors.warning),
             ),
         ]);
-        frame.render_widget(Paragraph::new(swap_line), areas[2]);
+        frame.render_widget(
+            Paragraph::new(swap_line).alignment(Alignment::Right),
+            areas[3],
+        );
     }
 }

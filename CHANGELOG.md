@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-25
+
 ### Added
+- Memory history sparkline in the Memory panel.
+- Help popup footer with version, repository link, and author.
 - Per-process CPU and memory history graphs in the process details popup.
 - Sort direction indicators (↑/↓) in the process table header, with direction
   toggling on repeated sort-key presses.
@@ -20,8 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Network panel header shows private and WAN IP addresses.
 - WAN IP toggle and editable WAN URL endpoint in the settings menu (fetched
   via `curl`, no added dependencies).
+- MIT license and `AGENTS.md` documentation.
 
 ### Changed
+- Memory and GPU stats text moved to the bottom-right and rendered in muted
+  grey (bars keep their fullness color).
+- CPU panel: spacing added between the live gauge and the history sparkline.
+- Network panel header now uses `prv` for the private address and omits the
+  WAN address when WAN IP is disabled.
 - Battery state now shows friendly labels (charging / discharging / full /
   empty / on AC).
 - Default refresh interval changed to 500 ms.

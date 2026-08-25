@@ -29,7 +29,7 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
     ])
     .areas(inner);
 
-    let [gauge_area, spark_area, _spacer, info_area] = Layout::vertical([
+    let [gauge_area, _spacer, spark_area, info_area] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(1),

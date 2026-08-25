@@ -45,6 +45,7 @@ pub struct History {
     gpu: RingBuffer<f32>,
     net_rx: RingBuffer<f64>,
     net_tx: RingBuffer<f64>,
+    mem: RingBuffer<f32>,
 }
 
 impl History {
@@ -54,6 +55,7 @@ impl History {
             gpu: RingBuffer::new(capacity),
             net_rx: RingBuffer::new(capacity),
             net_tx: RingBuffer::new(capacity),
+            mem: RingBuffer::new(capacity),
         }
     }
 
@@ -67,6 +69,12 @@ impl History {
             .fold((0.0f64, 0.0f64), |(r, t), n| (r + n.rx_bytes_per_sec, t + n.tx_bytes_per_sec));
         self.net_rx.push(rx);
         self.net_tx.push(tx);
+        let mem_pct = if snap.memory.total == 0 {
+            0.0
+        } else {
+            snap.memory.used as f32 / snap.memory.total as f32 * 100.0
+        };
+        self.mem.push(mem_pct);
     }
 
     pub fn cpu_series(&self) -> Vec<u64> {
@@ -83,6 +91,10 @@ impl History {
 
     pub fn net_tx_series(&self) -> Vec<u64> {
         self.net_tx.iter().map(|v| *v as u64).collect()
+    }
+
+    pub fn mem_series(&self) -> Vec<u64> {
+        self.mem.iter().map(|v| *v as u64).collect()
     }
 }
 
@@ -117,7 +129,7 @@ impl ProcessHistory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::snapshot::{CpuSnapshot, NetRate, Snapshot};
+    use crate::data::snapshot::{CpuSnapshot, MemorySnapshot, NetRate, Snapshot};
 
     #[test]
     fn wraps_and_keeps_oldest_to_newest_order() {
@@ -186,6 +198,15 @@ mod tests {
         h.record(&snap_with_cpu(20.0));
         h.record(&snap_with_cpu(30.0));
         assert_eq!(h.cpu_series(), vec![20, 30]);
+    }
+
+    #[test]
+    fn records_mem_percent_series() {
+        let mut s = Snapshot::default();
+        s.memory = MemorySnapshot { total: 1000, used: 250, ..Default::default() };
+        let mut h = History::new(3);
+        h.record(&s);
+        assert_eq!(h.mem_series(), vec![25]);
     }
 
     #[test]

@@ -69,7 +69,7 @@ pub fn render(
     *proc_rect = proc_area;
 
     widgets::cpu::render(frame, cpu_area, &snapshot.cpu, &history.cpu_series(), theme);
-    widgets::memory::render(frame, mem_area, &snapshot.memory, theme);
+    widgets::memory::render(frame, mem_area, &snapshot.memory, &history.mem_series(), theme);
     widgets::gpu::render(frame, gpu_area, snapshot.gpu.as_ref(), &history.gpu_series(), theme);
     widgets::network::render(
         frame,
@@ -81,6 +81,7 @@ pub fn render(
         snapshot.net_total_transmitted,
         private_ip,
         wan_ip,
+        wan_enabled,
         theme,
     );
     widgets::disk::render(frame, disk_area, &snapshot.disks, theme);
@@ -298,6 +299,20 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
             ratatui::text::Span::styled(action, Style::default().fg(theme.colors.text)),
         ]));
     }
+
+    lines.push(Line::from(""));
+    lines.push(
+        Line::from(format!("rtop v{}", env!("CARGO_PKG_VERSION")))
+            .style(Style::default().fg(theme.colors.muted)),
+    );
+    lines.push(
+        Line::from("repo: https://github.com/mojoaar/rtop")
+            .style(Style::default().fg(theme.colors.muted)),
+    );
+    lines.push(
+        Line::from("author: Morten Johansen — https://johansen.foo")
+            .style(Style::default().fg(theme.colors.muted)),
+    );
 
     let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
     let height = lines.len() as u16 + 2;

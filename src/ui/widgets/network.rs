@@ -16,12 +16,18 @@ pub fn render(
     total_transmitted: u64,
     private_ip: Option<&str>,
     wan_ip: Option<&str>,
+    wan_enabled: bool,
     theme: &Theme,
 ) {
     let private = private_ip.unwrap_or("n/a");
-    let wan = wan_ip.unwrap_or("n/a");
+    let title = if wan_enabled {
+        let wan = wan_ip.unwrap_or("n/a");
+        format!(" Network · prv {private} · wan {wan} ")
+    } else {
+        format!(" Network · prv {private} ")
+    };
     let block = Block::bordered()
-        .title(format!(" Network · private {private} · wan {wan} "))
+        .title(title)
         .title_style(
             Style::default()
                 .fg(theme.colors.accent)

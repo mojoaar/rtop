@@ -1,7 +1,7 @@
 use crate::data::format::human_bytes;
 use crate::data::snapshot::GpuInfo;
 use crate::theme::Theme;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline};
 use ratatui::Frame;
@@ -69,7 +69,9 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
         )
     };
     frame.render_widget(
-        Paragraph::new(mem_label).style(Style::default().fg(theme.colors.text)),
+        Paragraph::new(mem_label)
+            .style(Style::default().fg(theme.colors.muted))
+            .alignment(Alignment::Right),
         mem_area,
     );
 }
