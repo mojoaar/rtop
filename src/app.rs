@@ -1,4 +1,5 @@
 use crate::config::{Config, GeneralConfig, ThemeConfig};
+use crate::data::history::History;
 use crate::data::{self, snapshot::Snapshot, Command};
 use crate::event::{poll_action, Action};
 use crate::theme;
@@ -8,6 +9,7 @@ use anyhow::Result;
 
 pub struct App {
     snapshot: Snapshot,
+    history: History,
     theme: theme::Theme,
     themes: Vec<theme::Theme>,
     theme_index: usize,
@@ -26,6 +28,7 @@ impl App {
         let theme = themes.get(index).cloned().unwrap();
         Self {
             snapshot: Snapshot::default(),
+            history: History::new(120),
             theme,
             themes,
             theme_index: index,
@@ -68,7 +71,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
     let mut app = App::new(config);
 
     loop {
-        terminal.draw(|frame| ui::render(frame, &app.snapshot, &app.theme, app.selected))?;
+        terminal.draw(|frame| ui::render(frame, &app.snapshot, &app.theme, app.selected, &app.history))?;
         match poll_action(std::time::Duration::from_millis(50))? {
             Action::Quit => break,
             Action::NextTheme => app.cycle_theme(),
@@ -109,6 +112,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             Action::Tick => {
                 while let Ok(snap) = rx.try_recv() {
                     app.snapshot = snap;
+                    app.history.record(&app.snapshot);
                 }
                 processes::sort(&mut app.snapshot.processes, app.sort_key);
                 if let Some(i) = app.selected {

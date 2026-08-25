@@ -1,4 +1,4 @@
-use crate::data::format::human_bytes;
+use crate::data::format::{human_bytes, human_rate};
 use crate::data::snapshot::DiskUsage;
 use crate::theme::Theme;
 use ratatui::layout::Rect;
@@ -19,10 +19,12 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
         .map(|d| {
             let used = d.total.saturating_sub(d.available);
             Line::from(format!(
-                "{}  {} / {} used",
+                "{}  {} / {} used  R: {}  W: {}",
                 d.mount_point,
                 human_bytes(used),
-                human_bytes(d.total)
+                human_bytes(d.total),
+                human_rate(d.read_bytes_per_sec),
+                human_rate(d.write_bytes_per_sec)
             ))
         })
         .collect();
