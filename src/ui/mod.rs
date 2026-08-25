@@ -290,10 +290,12 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         .max(banner.iter().map(|b| b.chars().count()).max().unwrap_or(0))
         .max(footer.iter().map(|l| l.chars().count()).max().unwrap_or(0));
 
+    let banner_max = banner.iter().map(|b| b.chars().count()).max().unwrap_or(0);
     let mut lines: Vec<Line> = banner
         .iter()
         .map(|b| {
-            Line::from(format!("{:^width$}", b, width = content_width)).style(
+            let normalized = format!("{:<bw$}", b, bw = banner_max);
+            Line::from(format!("{:^width$}", normalized, width = content_width)).style(
                 Style::default()
                     .fg(theme.colors.accent)
                     .add_modifier(Modifier::BOLD),
