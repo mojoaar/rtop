@@ -72,7 +72,10 @@ pub fn render(
             (format!("filter: {}|", filter), theme.colors.warning)
         } else if !filter.is_empty() {
             (
-                format!("filter: {} · z back · q quit · Enter details · ? help", filter),
+                format!(
+                    "filter: {} · z back · q quit · Enter details · ? help",
+                    filter
+                ),
                 theme.colors.warning,
             )
         } else {

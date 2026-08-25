@@ -78,7 +78,7 @@ impl MetricsProvider for SysinfoProvider {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last);
         self.last = now;
-        let slow = self.tick % SLOW_EVERY == 0;
+        let slow = self.tick.is_multiple_of(SLOW_EVERY);
         self.tick = self.tick.wrapping_add(1);
 
         self.system.refresh_cpu_all();
