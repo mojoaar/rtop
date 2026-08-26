@@ -7,12 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Network panel header shows the active (busiest non-loopback) interface.
-
 ### Changed
-- Disk usage percentage is now rendered inside the bar, in the theme text color
-  for readability instead of white.
+- Disk panel now uses a table layout (mount, size, used, free) with the used
+  value colored by fullness, instead of a bar with an inlaid percentage.
+- Disk and sensors panels now share the row evenly (50/50) instead of 1:2.
 
 ## [0.6.0] - 2026-08-25
 

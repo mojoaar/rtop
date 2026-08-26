@@ -132,7 +132,7 @@ pub fn render(
     let [mem_area, gpu_area] =
         Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).areas(mem_gpu_area);
     let [disk_area, sensors_area] =
-        Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
+        Layout::horizontal([Constraint::Ratio(1, 1), Constraint::Ratio(1, 1)])
             .areas(disk_sensors_area);
 
     *proc_rect = proc_area;

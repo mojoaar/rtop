@@ -34,18 +34,6 @@ pub fn fullness_color(pct: f64, theme: &Theme) -> Color {
     }
 }
 
-pub fn bar_label_split(bar: &str, label: &str) -> Option<(String, String)> {
-    let bar_len = bar.chars().count();
-    let label_len = label.chars().count();
-    if label_len > bar_len {
-        return None;
-    }
-    let start = (bar_len - label_len) / 2;
-    let left: String = bar.chars().take(start).collect();
-    let right: String = bar.chars().skip(start + label_len).collect();
-    Some((left, right))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,26 +70,5 @@ mod tests {
         assert_eq!(fullness_bucket(60.0), 1);
         assert_eq!(fullness_bucket(84.9), 1);
         assert_eq!(fullness_bucket(85.0), 2);
-    }
-
-    #[test]
-    fn bar_label_split_centers_label() {
-        assert_eq!(
-            bar_label_split("████████", "42%"),
-            Some(("██".to_string(), "███".to_string()))
-        );
-    }
-
-    #[test]
-    fn bar_label_split_exact_fit() {
-        assert_eq!(
-            bar_label_split("███", "abc"),
-            Some(("".to_string(), "".to_string()))
-        );
-    }
-
-    #[test]
-    fn bar_label_split_too_narrow_is_none() {
-        assert_eq!(bar_label_split("██", "abc"), None);
     }
 }

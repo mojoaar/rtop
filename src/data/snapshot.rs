@@ -37,6 +37,7 @@ pub struct MemorySnapshot {
 
 #[derive(Debug, Clone, Default)]
 pub struct NetRate {
+    #[allow(dead_code)]
     pub name: String,
     pub rx_bytes_per_sec: f64,
     pub tx_bytes_per_sec: f64,
