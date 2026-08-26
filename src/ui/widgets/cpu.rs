@@ -6,7 +6,14 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline};
 use ratatui::Frame;
 
-pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], theme: &Theme) {
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    cpu: &CpuSnapshot,
+    spark: &[u64],
+    show_labels: bool,
+    theme: &Theme,
+) {
     let title = match cpu.load_avg {
         Some(l) => format!(" CPU · load: {:.2} {:.2} {:.2} ", l[0], l[1], l[2]),
         None => " CPU ".to_string(),
@@ -29,39 +36,50 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
     ])
     .areas(inner);
 
-    let [active_label, gauge_chart, history_label, spark_chart, _fill, info_area] =
-        Layout::vertical([
-            Constraint::Length(1), // active label
-            Constraint::Length(1), // active gauge
-            Constraint::Length(1), // history label
-            Constraint::Length(1), // history sparkline
-            Constraint::Min(0),
-            Constraint::Length(1), // brand/frequency info
-        ])
-        .areas(left_area);
+    let mut left_constraints: Vec<Constraint> = Vec::new();
+    if show_labels {
+        left_constraints.push(Constraint::Length(1)); // active label
+    }
+    left_constraints.push(Constraint::Length(1)); // active gauge
+    if show_labels {
+        left_constraints.push(Constraint::Length(1)); // history label
+    }
+    left_constraints.push(Constraint::Length(1)); // history sparkline
+    left_constraints.push(Constraint::Min(0));
+    left_constraints.push(Constraint::Length(1)); // brand/frequency info
+    let left_areas = Layout::vertical(left_constraints).split(left_area);
 
-    frame.render_widget(
-        Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
-        active_label,
-    );
+    let mut idx = 0;
+    if show_labels {
+        frame.render_widget(
+            Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
+            left_areas[idx],
+        );
+        idx += 1;
+    }
     frame.render_widget(
         Gauge::default()
             .gauge_style(Style::default().fg(theme.colors.accent))
             .ratio((cpu.global_usage.clamp(0.0, 100.0) / 100.0) as f64)
             .label(format!("{:.0}%", cpu.global_usage)),
-        gauge_chart,
+        left_areas[idx],
     );
-
-    frame.render_widget(
-        Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
-        history_label,
-    );
+    idx += 1;
+    if show_labels {
+        frame.render_widget(
+            Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+            left_areas[idx],
+        );
+        idx += 1;
+    }
     frame.render_widget(
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(theme.colors.accent)),
-        spark_chart,
+        left_areas[idx],
     );
+    idx += 1;
+    let info_area = left_areas[idx + 1];
 
     let mut info = String::new();
     if !cpu.brand.is_empty() {

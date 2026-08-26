@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - New built-in themes: Dracula, Nord, and GitHub Dark (in addition to the four
   Catppuccin flavors).
+- Settings toggle to show or hide the Active/History chart labels in the CPU,
+  memory, and GPU panels (default on).
 
 ### Changed
 - Disk panel now uses a table layout (mount, size, used, free) with the used

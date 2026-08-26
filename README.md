@@ -124,6 +124,7 @@ are persisted to the config file:
 | Transparent | `on` / `off` (terminal background vs theme bg)  |
 | Time        | `on` / `off` (show the clock in the footer)       |
 | Uptime      | `on` / `off` (show uptime in the footer)          |
+| Labels      | `on` / `off` (show Active/History chart labels)   |
 | WAN IP      | `on` / `off` (fetch public IP via the URL below)  |
 | WAN URL     | endpoint returning your public IP (press `Enter` to edit) |
 
@@ -152,6 +153,7 @@ interval_ms = 500       # sampling + render tick, in milliseconds
 transparent = true      # use the terminal's background (false = theme bg)
 show_time = true        # show the clock in the footer
 show_uptime = true      # show system uptime in the footer
+show_labels = true      # show Active/History chart labels
 wan_enabled = false     # fetch and display the public (WAN) IP
 wan_url = "https://echo.johansen.foo/api/ip"  # endpoint returning your public IP
 ```

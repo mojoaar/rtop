@@ -6,7 +6,14 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline};
 use ratatui::Frame;
 
-pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64], theme: &Theme) {
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    gpu: Option<&GpuInfo>,
+    spark: &[u64],
+    show_labels: bool,
+    theme: &Theme,
+) {
     let title = " GPU ".to_string();
     let block = Block::bordered()
         .title(title)
@@ -20,65 +27,82 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
     frame.render_widget(block, area);
 
     let Some(gpu) = gpu else {
-        let [history_label, spark_chart, _spacer, na_area] = Layout::vertical([
-            Constraint::Length(1), // history label
-            Constraint::Length(1), // history sparkline
-            Constraint::Min(0),
-            Constraint::Length(1), // n/a
-        ])
-        .areas(inner);
-        frame.render_widget(
-            Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
-            history_label,
-        );
+        let mut constraints: Vec<Constraint> = Vec::new();
+        if show_labels {
+            constraints.push(Constraint::Length(1)); // history label
+        }
+        constraints.push(Constraint::Length(1)); // history sparkline
+        constraints.push(Constraint::Min(0));
+        constraints.push(Constraint::Length(1)); // n/a
+        let areas = Layout::vertical(constraints).split(inner);
+
+        let mut idx = 0;
+        if show_labels {
+            frame.render_widget(
+                Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+                areas[idx],
+            );
+            idx += 1;
+        }
         frame.render_widget(
             Sparkline::default()
                 .data(spark)
                 .style(Style::default().fg(theme.colors.info)),
-            spark_chart,
+            areas[idx],
         );
+        idx += 2; // skip sparkline + fill
         frame.render_widget(
             Paragraph::new("n/a")
                 .style(Style::default().fg(theme.colors.muted))
                 .alignment(Alignment::Right),
-            na_area,
+            areas[idx],
         );
         return;
     };
 
-    let [active_label, gauge_chart, history_label, spark_chart, _spacer, mem_area] =
-        Layout::vertical([
-            Constraint::Length(1), // active label
-            Constraint::Length(1), // active gauge
-            Constraint::Length(1), // history label
-            Constraint::Length(1), // history sparkline
-            Constraint::Min(0),
-            Constraint::Length(1), // mem text
-        ])
-        .areas(inner);
+    let mut constraints: Vec<Constraint> = Vec::new();
+    if show_labels {
+        constraints.push(Constraint::Length(1)); // active label
+    }
+    constraints.push(Constraint::Length(1)); // active gauge
+    if show_labels {
+        constraints.push(Constraint::Length(1)); // history label
+    }
+    constraints.push(Constraint::Length(1)); // history sparkline
+    constraints.push(Constraint::Min(0));
+    constraints.push(Constraint::Length(1)); // mem text
+    let areas = Layout::vertical(constraints).split(inner);
 
-    frame.render_widget(
-        Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
-        active_label,
-    );
+    let mut idx = 0;
+    if show_labels {
+        frame.render_widget(
+            Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
+            areas[idx],
+        );
+        idx += 1;
+    }
     frame.render_widget(
         Gauge::default()
             .gauge_style(Style::default().fg(theme.colors.info))
             .ratio((gpu.utilization_percent.clamp(0.0, 100.0) / 100.0) as f64)
             .label(format!("{:.0}%", gpu.utilization_percent)),
-        gauge_chart,
+        areas[idx],
     );
-
-    frame.render_widget(
-        Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
-        history_label,
-    );
+    idx += 1;
+    if show_labels {
+        frame.render_widget(
+            Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+            areas[idx],
+        );
+        idx += 1;
+    }
     frame.render_widget(
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(theme.colors.info)),
-        spark_chart,
+        areas[idx],
     );
+    idx += 2; // skip sparkline + fill
 
     let mem_label = if gpu.memory_total_bytes == 0 {
         format!("mem: {}", human_bytes(gpu.memory_used_bytes))
@@ -93,6 +117,6 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
         Paragraph::new(mem_label)
             .style(Style::default().fg(theme.colors.muted))
             .alignment(Alignment::Right),
-        mem_area,
+        areas[idx],
     );
 }

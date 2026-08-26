@@ -31,6 +31,7 @@ pub fn render(
     transparent: bool,
     show_time: bool,
     show_uptime: bool,
+    show_labels: bool,
     fullscreen: bool,
     wan_enabled: bool,
     private_ip: Option<&str>,
@@ -106,6 +107,7 @@ pub fn render(
                     transparent,
                     show_time,
                     show_uptime,
+                    show_labels,
                     wan_enabled,
                     settings_editing,
                     wan_url,
@@ -137,12 +139,20 @@ pub fn render(
 
     *proc_rect = proc_area;
 
-    widgets::cpu::render(frame, cpu_area, &snapshot.cpu, &history.cpu_series(), theme);
+    widgets::cpu::render(
+        frame,
+        cpu_area,
+        &snapshot.cpu,
+        &history.cpu_series(),
+        show_labels,
+        theme,
+    );
     widgets::memory::render(
         frame,
         mem_area,
         &snapshot.memory,
         &history.mem_series(),
+        show_labels,
         theme,
     );
     widgets::gpu::render(
@@ -150,6 +160,7 @@ pub fn render(
         gpu_area,
         snapshot.gpu.as_ref(),
         &history.gpu_series(),
+        show_labels,
         theme,
     );
     widgets::network::render(
@@ -251,6 +262,7 @@ pub fn render(
                 transparent,
                 show_time,
                 show_uptime,
+                show_labels,
                 wan_enabled,
                 settings_editing,
                 wan_url,
@@ -439,6 +451,7 @@ struct SettingsView<'a> {
     transparent: bool,
     show_time: bool,
     show_uptime: bool,
+    show_labels: bool,
     wan_enabled: bool,
     settings_editing: bool,
     wan_url: &'a str,
@@ -452,6 +465,7 @@ fn render_settings(frame: &mut Frame, area: Rect, theme: &Theme, settings: &Sett
         transparent,
         show_time,
         show_uptime,
+        show_labels,
         wan_enabled,
         settings_editing,
         wan_url,
@@ -477,6 +491,14 @@ fn render_settings(frame: &mut Frame, area: Rect, theme: &Theme, settings: &Sett
         (
             "Uptime",
             if show_uptime {
+                "on".into()
+            } else {
+                "off".into()
+            },
+        ),
+        (
+            "Labels",
+            if show_labels {
                 "on".into()
             } else {
                 "off".into()
@@ -593,6 +615,7 @@ mod tests {
             false,
             false,
             false,
+            false,
             None,
             None,
             false,
@@ -631,6 +654,7 @@ mod tests {
             false,
             0,
             1000,
+            false,
             false,
             false,
             false,

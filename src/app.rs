@@ -46,6 +46,7 @@ pub struct App {
     transparent: bool,
     show_time: bool,
     show_uptime: bool,
+    show_labels: bool,
     filter: String,
     filtering: bool,
     show_settings: bool,
@@ -92,6 +93,7 @@ impl App {
             transparent: config.general.transparent,
             show_time: config.general.show_time,
             show_uptime: config.general.show_uptime,
+            show_labels: config.general.show_labels,
             filter: String::new(),
             filtering: false,
             show_settings: false,
@@ -137,6 +139,7 @@ impl App {
                 transparent: self.transparent,
                 show_time: self.show_time,
                 show_uptime: self.show_uptime,
+                show_labels: self.show_labels,
                 wan_enabled: self.wan_enabled,
                 wan_url: self.wan_url.clone(),
             },
@@ -166,7 +169,7 @@ impl App {
     }
 
     fn settings_down(&mut self) {
-        if self.settings_index < 6 {
+        if self.settings_index < 7 {
             self.settings_index += 1;
         }
     }
@@ -191,6 +194,10 @@ impl App {
                 self.save_config();
             }
             5 => {
+                self.show_labels = !self.show_labels;
+                self.save_config();
+            }
+            6 => {
                 self.wan_enabled = !self.wan_enabled;
                 self.save_config();
                 self.send_ip_update();
@@ -219,6 +226,10 @@ impl App {
                 self.save_config();
             }
             5 => {
+                self.show_labels = !self.show_labels;
+                self.save_config();
+            }
+            6 => {
                 self.wan_enabled = !self.wan_enabled;
                 self.save_config();
                 self.send_ip_update();
@@ -365,6 +376,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                     app.transparent,
                     app.show_time,
                     app.show_uptime,
+                    app.show_labels,
                     app.fullscreen,
                     app.wan_enabled,
                     app.private_ip.as_deref(),
@@ -459,7 +471,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 Action::SettingsDec => app.settings_dec(&cmd_tx),
                 Action::SettingsInc => app.settings_inc(&cmd_tx),
                 Action::SettingsActivate => {
-                    if app.settings_index == 6 {
+                    if app.settings_index == 7 {
                         app.wan_url_edit = app.wan_url.clone();
                         app.settings_editing = true;
                     }

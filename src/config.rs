@@ -21,6 +21,7 @@ pub struct GeneralConfig {
     pub transparent: bool,
     pub show_time: bool,
     pub show_uptime: bool,
+    pub show_labels: bool,
     pub wan_enabled: bool,
     pub wan_url: String,
 }
@@ -39,6 +40,7 @@ impl Default for GeneralConfig {
             transparent: true,
             show_time: true,
             show_uptime: true,
+            show_labels: true,
             wan_enabled: false,
             wan_url: "https://echo.johansen.foo/api/ip".into(),
         }
@@ -93,6 +95,7 @@ mod tests {
         assert!(c.general.transparent);
         assert!(c.general.show_time);
         assert!(c.general.show_uptime);
+        assert!(c.general.show_labels);
         assert!(!c.general.wan_enabled);
         assert_eq!(c.general.wan_url, "https://echo.johansen.foo/api/ip");
     }
