@@ -1,9 +1,5 @@
-use std::time::Instant;
-
 #[derive(Debug, Clone, Default)]
 pub struct Snapshot {
-    #[allow(dead_code)]
-    pub timestamp: Option<Instant>,
     pub uptime: u64,
     pub cpu: CpuSnapshot,
     pub memory: MemorySnapshot,
@@ -45,8 +41,6 @@ pub struct NetRate {
 #[derive(Debug, Clone, Default)]
 pub struct DiskUsage {
     pub mount_point: String,
-    #[allow(dead_code)]
-    pub name: String,
     pub total: u64,
     pub available: u64,
     pub read_bytes_per_sec: f64,
@@ -78,11 +72,12 @@ pub struct BatteryInfo {
     pub state: String,
     pub time_to_full_secs: Option<u64>,
     pub time_to_empty_secs: Option<u64>,
+    pub cycle_count: Option<u32>,
+    pub health_percent: Option<f32>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct GpuInfo {
-    #[allow(dead_code)]
     pub name: String,
     pub utilization_percent: f32,
     pub memory_used_bytes: u64,

@@ -25,11 +25,7 @@ impl<T: Clone> RingBuffer<T> {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn len(&self) -> usize {
-        self.buf.len()
-    }
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.buf.is_empty()
     }
@@ -39,7 +35,7 @@ impl<T: Clone> RingBuffer<T> {
         (0..n).map(move |i| &self.buf[(self.head + i) % n])
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn latest(&self) -> Option<&T> {
         if self.buf.is_empty() {
             return None;

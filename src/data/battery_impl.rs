@@ -43,5 +43,9 @@ pub fn read_battery() -> Option<BatteryInfo> {
             .as_ref()
             .and_then(|b| b.time_to_empty())
             .map(|t| t.value as u64),
+        cycle_count: primary.as_ref().and_then(|b| b.cycle_count()),
+        health_percent: primary
+            .as_ref()
+            .map(|b| (b.state_of_health().value * 100.0).clamp(0.0, 100.0)),
     })
 }

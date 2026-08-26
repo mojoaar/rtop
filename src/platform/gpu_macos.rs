@@ -114,8 +114,11 @@ impl GpuStats for MacGpu {
     fn read(&self) -> Option<GpuInfo> {
         unsafe {
             // Apple Silicon exposes the GPU as AGXAccelerator; Intel/AMD use IOAccelerator.
-            let props = service_property(b"AGXAccelerator\0")
-                .or_else(|| service_property(b"IOAccelerator\0"))?;
+            let (name, props) = if let Some(p) = service_property(b"AGXAccelerator\0") {
+                ("Apple", p)
+            } else {
+                ("AMD/Intel", service_property(b"IOAccelerator\0")?)
+            };
 
             let parsed = (|| {
                 let util = dict_number(props, b"Device Utilization %\0")?;
@@ -127,7 +130,7 @@ impl GpuStats for MacGpu {
 
             let (util, mem_used, mem_total) = parsed?;
             Some(GpuInfo {
-                name: "GPU".into(),
+                name: name.into(),
                 utilization_percent: util as f32,
                 memory_used_bytes: mem_used as u64,
                 memory_total_bytes: mem_total as u64,

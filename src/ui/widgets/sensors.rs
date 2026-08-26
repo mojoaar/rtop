@@ -9,6 +9,21 @@ use ratatui::Frame;
 
 const MAX_COMPONENTS: usize = 4;
 
+pub fn format_battery_health(cycle_count: Option<u32>, health_percent: Option<f32>) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(c) = cycle_count {
+        parts.push(format!("cycles: {}", c));
+    }
+    if let Some(h) = health_percent {
+        parts.push(format!("health: {:.0}%", h));
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!("  ·  {}", parts.join("  ·  "))
+    }
+}
+
 pub fn selected_components(components: &[ComponentInfo], max: usize) -> Vec<&ComponentInfo> {
     let is_priority = |c: &ComponentInfo| {
         let l = c.label.to_lowercase();
@@ -58,6 +73,7 @@ pub fn render(
         if let Some(t) = b.time_to_full_secs {
             line.push_str(&format!("  ·  full in {}", format_duration_secs(t)));
         }
+        line.push_str(&format_battery_health(b.cycle_count, b.health_percent));
         lines.push(Line::from(line));
     } else {
         lines.push(Line::from("Battery: n/a"));
@@ -116,5 +132,23 @@ mod tests {
     #[test]
     fn empty_is_ok() {
         assert!(selected_components(&[], 4).is_empty());
+    }
+
+    #[test]
+    fn battery_health_omits_missing_values() {
+        assert_eq!(format_battery_health(None, None), "");
+    }
+
+    #[test]
+    fn battery_health_formats_cycles_and_health() {
+        assert_eq!(
+            format_battery_health(Some(123), Some(95.0)),
+            "  ·  cycles: 123  ·  health: 95%"
+        );
+    }
+
+    #[test]
+    fn battery_health_formats_cycles_only() {
+        assert_eq!(format_battery_health(Some(10), None), "  ·  cycles: 10");
     }
 }

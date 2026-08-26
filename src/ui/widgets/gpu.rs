@@ -14,7 +14,10 @@ pub fn render(
     show_labels: bool,
     theme: &Theme,
 ) {
-    let title = " GPU ".to_string();
+    let title = match gpu {
+        Some(g) => format!(" GPU · {} ", g.name),
+        None => " GPU ".to_string(),
+    };
     let block = Block::bordered()
         .title(title)
         .title_style(

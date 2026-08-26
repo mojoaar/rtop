@@ -174,7 +174,6 @@ impl MetricsProvider for SysinfoProvider {
                 );
                 DiskUsage {
                     mount_point: key,
-                    name: d.name().to_string_lossy().to_string(),
                     total: d.total_space(),
                     available: d.available_space(),
                     read_bytes_per_sec: r,
@@ -233,7 +232,6 @@ impl MetricsProvider for SysinfoProvider {
         }
 
         Snapshot {
-            timestamp: Some(now),
             uptime: sysinfo::System::uptime(),
             cpu,
             memory,
