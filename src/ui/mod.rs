@@ -121,7 +121,7 @@ pub fn render(
     let [cpu_area, mem_gpu_area, net_area, disk_sensors_area, proc_area, help_area] =
         Layout::vertical([
             Constraint::Length(cpu_height),
-            Constraint::Length(7),
+            Constraint::Length(8),
             Constraint::Length(5),
             Constraint::Length(5),
             Constraint::Min(0),

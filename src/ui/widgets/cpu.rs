@@ -29,17 +29,17 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
     ])
     .areas(inner);
 
-    let [gauge_area, _spacer, spark_area, _fill, info_area] = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Min(0),
-        Constraint::Length(1),
-    ])
-    .areas(left_area);
+    let [active_label, gauge_chart, history_label, spark_chart, _fill, info_area] =
+        Layout::vertical([
+            Constraint::Length(1), // active label
+            Constraint::Length(1), // active gauge
+            Constraint::Length(1), // history label
+            Constraint::Length(1), // history sparkline
+            Constraint::Min(0),
+            Constraint::Length(1), // brand/frequency info
+        ])
+        .areas(left_area);
 
-    let [active_label, gauge_chart] =
-        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(gauge_area);
     frame.render_widget(
         Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
         active_label,
@@ -52,8 +52,6 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
         gauge_chart,
     );
 
-    let [history_label, spark_chart] =
-        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(spark_area);
     frame.render_widget(
         Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
         history_label,

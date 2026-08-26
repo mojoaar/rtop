@@ -20,14 +20,13 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
     frame.render_widget(block, area);
 
     let Some(gpu) = gpu else {
-        let [spark_area, _spacer, na_area] = Layout::vertical([
-            Constraint::Length(1),
+        let [history_label, spark_chart, _spacer, na_area] = Layout::vertical([
+            Constraint::Length(1), // history label
+            Constraint::Length(1), // history sparkline
             Constraint::Min(0),
-            Constraint::Length(1),
+            Constraint::Length(1), // n/a
         ])
         .areas(inner);
-        let [history_label, spark_chart] =
-            Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(spark_area);
         frame.render_widget(
             Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
             history_label,
@@ -47,17 +46,17 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
         return;
     };
 
-    let [gauge_area, _gap, spark_area, _spacer, mem_area] = Layout::vertical([
-        Constraint::Length(1), // active gauge
-        Constraint::Length(1), // spacing
-        Constraint::Length(1), // history sparkline
-        Constraint::Min(0),
-        Constraint::Length(1), // mem text
-    ])
-    .areas(inner);
+    let [active_label, gauge_chart, history_label, spark_chart, _spacer, mem_area] =
+        Layout::vertical([
+            Constraint::Length(1), // active label
+            Constraint::Length(1), // active gauge
+            Constraint::Length(1), // history label
+            Constraint::Length(1), // history sparkline
+            Constraint::Min(0),
+            Constraint::Length(1), // mem text
+        ])
+        .areas(inner);
 
-    let [active_label, gauge_chart] =
-        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(gauge_area);
     frame.render_widget(
         Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
         active_label,
@@ -70,8 +69,6 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
         gauge_chart,
     );
 
-    let [history_label, spark_chart] =
-        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(spark_area);
     frame.render_widget(
         Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
         history_label,

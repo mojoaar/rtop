@@ -32,8 +32,9 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
     let has_swap = mem.swap_total > 0;
     let constraints: Vec<Constraint> = if has_swap {
         vec![
+            Constraint::Length(1), // active label
             Constraint::Length(1), // active bar
-            Constraint::Length(1), // spacing
+            Constraint::Length(1), // history label
             Constraint::Length(1), // history sparkline
             Constraint::Min(0),
             Constraint::Length(1), // stats text
@@ -41,8 +42,9 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         ]
     } else {
         vec![
+            Constraint::Length(1), // active label
             Constraint::Length(1), // active bar
-            Constraint::Length(1), // spacing
+            Constraint::Length(1), // history label
             Constraint::Length(1), // history sparkline
             Constraint::Min(0),
             Constraint::Length(1), // stats text
@@ -50,29 +52,25 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
     };
     let areas = Layout::vertical(constraints).split(inner);
 
-    let [active_label, active_chart] =
-        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(areas[0]);
     frame.render_widget(
         Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
-        active_label,
+        areas[0],
     );
-    let bar = block_bar(ratio, active_chart.width as usize);
+    let bar = block_bar(ratio, areas[1].width as usize);
     frame.render_widget(
         Paragraph::new(bar).style(Style::default().fg(color)),
-        active_chart,
+        areas[1],
     );
 
-    let [history_label, history_chart] =
-        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(areas[2]);
     frame.render_widget(
         Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
-        history_label,
+        areas[2],
     );
     frame.render_widget(
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(color)),
-        history_chart,
+        areas[3],
     );
 
     let values = format!(
@@ -85,7 +83,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         Paragraph::new(values)
             .style(Style::default().fg(theme.colors.muted))
             .alignment(Alignment::Right),
-        areas[4],
+        areas[5],
     );
 
     if has_swap {
@@ -102,7 +100,7 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
         ]);
         frame.render_widget(
             Paragraph::new(swap_line).alignment(Alignment::Right),
-            areas[5],
+            areas[6],
         );
     }
 }
