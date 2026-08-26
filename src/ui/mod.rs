@@ -1,8 +1,8 @@
 pub mod widgets;
 
-use crate::data::format::{format_duration_secs, human_bytes};
+use crate::data::format::{format_duration_secs, human_bytes, human_rate};
 use crate::data::history::{History, ProcessHistory};
-use crate::data::snapshot::{ProcessInfo, Snapshot};
+use crate::data::snapshot::{NetRate, ProcessInfo, Snapshot};
 use crate::theme::Theme;
 use crate::ui::widgets::processes::{SortDir, SortKey};
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
@@ -12,40 +12,80 @@ use ratatui::widgets::{Block, Clear, Paragraph, Sparkline};
 use ratatui::Frame;
 use std::collections::HashMap;
 
-#[allow(clippy::too_many_arguments)]
-pub fn render(
-    frame: &mut Frame,
-    snapshot: &Snapshot,
-    theme: &Theme,
-    selected: Option<usize>,
-    history: &History,
-    processes: &[ProcessInfo],
-    scroll: usize,
-    filter: &str,
-    filtering: bool,
-    detail: Option<&ProcessInfo>,
-    show_help: bool,
-    show_settings: bool,
-    settings_index: usize,
-    interval_ms: u64,
-    transparent: bool,
-    show_time: bool,
-    show_uptime: bool,
-    show_labels: bool,
-    fullscreen: bool,
-    wan_enabled: bool,
-    private_ip: Option<&str>,
-    wan_ip: Option<&str>,
-    settings_editing: bool,
-    wan_url: &str,
-    wan_url_edit: &str,
-    proc_rect: &mut Rect,
-    total: usize,
-    sort_key: SortKey,
-    sort_dir: SortDir,
-    proc_history: &HashMap<u32, ProcessHistory>,
-) {
+pub struct RenderContext<'a> {
+    pub snapshot: &'a Snapshot,
+    pub theme: &'a Theme,
+    pub selected: Option<usize>,
+    pub history: &'a History,
+    pub processes: &'a [ProcessInfo],
+    pub order: &'a [usize],
+    pub scroll: usize,
+    pub filter: &'a str,
+    pub filtering: bool,
+    pub detail: Option<&'a ProcessInfo>,
+    pub show_help: bool,
+    pub show_settings: bool,
+    pub settings_index: usize,
+    pub show_signal: bool,
+    pub signal_index: usize,
+    pub interval_ms: u64,
+    pub transparent: bool,
+    pub show_time: bool,
+    pub show_uptime: bool,
+    pub show_labels: bool,
+    pub fullscreen: bool,
+    pub net_detail: bool,
+    pub frozen: bool,
+    pub wan_enabled: bool,
+    pub private_ip: Option<&'a str>,
+    pub wan_ip: Option<&'a str>,
+    pub settings_editing: bool,
+    pub wan_url: &'a str,
+    pub wan_url_edit: &'a str,
+    pub total: usize,
+    pub sort_key: SortKey,
+    pub sort_dir: SortDir,
+    pub proc_history: &'a HashMap<u32, ProcessHistory>,
+}
+
+pub fn render(frame: &mut Frame, ctx: &RenderContext<'_>) -> Rect {
+    let RenderContext {
+        snapshot,
+        theme,
+        selected,
+        history,
+        processes,
+        order,
+        scroll,
+        filter,
+        filtering,
+        detail,
+        show_help,
+        show_settings,
+        settings_index,
+        show_signal,
+        signal_index,
+        interval_ms,
+        transparent,
+        show_time,
+        show_uptime,
+        show_labels,
+        fullscreen,
+        net_detail,
+        frozen,
+        wan_enabled,
+        private_ip,
+        wan_ip,
+        settings_editing,
+        wan_url,
+        wan_url_edit,
+        total,
+        sort_key,
+        sort_dir,
+        proc_history,
+    } = *ctx;
     let area = frame.area();
+    let proc_rect: Rect;
 
     if !transparent {
         let bg = Block::default().style(Style::default().bg(theme.colors.bg));
@@ -55,11 +95,12 @@ pub fn render(
     if fullscreen {
         let [proc_area, help_area] =
             Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
-        *proc_rect = proc_area;
+        proc_rect = proc_area;
         widgets::processes::render(
             frame,
             proc_area,
             processes,
+            order,
             &widgets::processes::ProcessView {
                 selected,
                 scroll,
@@ -69,7 +110,12 @@ pub fn render(
             },
             theme,
         );
-        let (footer_text, footer_color) = if filtering {
+        let (footer_text, footer_color) = if frozen {
+            (
+                "PAUSED · space resume · z back · q quit".to_string(),
+                theme.colors.warning,
+            )
+        } else if filtering {
             (format!("filter: {}|", filter), theme.colors.warning)
         } else if !filter.is_empty() {
             (
@@ -115,7 +161,21 @@ pub fn render(
                 },
             );
         }
-        return;
+        if show_signal {
+            render_signal(
+                frame,
+                area,
+                theme,
+                signal_index,
+                selected
+                    .and_then(|i| order.get(i))
+                    .and_then(|&idx| processes.get(idx)),
+            );
+        }
+        if net_detail {
+            render_net_detail(frame, area, theme, &snapshot.network);
+        }
+        return proc_rect;
     }
 
     let core_rows = snapshot.cpu.per_core.len().max(1) as u16;
@@ -137,7 +197,7 @@ pub fn render(
         Layout::horizontal([Constraint::Ratio(1, 1), Constraint::Ratio(1, 1)])
             .areas(disk_sensors_area);
 
-    *proc_rect = proc_area;
+    proc_rect = proc_area;
 
     widgets::cpu::render(
         frame,
@@ -191,6 +251,7 @@ pub fn render(
         frame,
         proc_area,
         processes,
+        order,
         &widgets::processes::ProcessView {
             selected,
             scroll,
@@ -225,6 +286,9 @@ pub fn render(
 
     let now = chrono::Local::now();
     let mut parts: Vec<String> = Vec::new();
+    if frozen {
+        parts.push("PAUSED".to_string());
+    }
     if show_time {
         let tz = now.format("%Z").to_string();
         parts.push(if tz.is_empty() {
@@ -238,9 +302,14 @@ pub fn render(
     }
     parts.push(format!("{}ms", interval_ms));
     let clock = parts.join(" · ");
+    let clock_style = if frozen {
+        Style::default().fg(theme.colors.warning)
+    } else {
+        Style::default().fg(theme.colors.muted)
+    };
     frame.render_widget(
         Paragraph::new(clock)
-            .style(Style::default().fg(theme.colors.muted))
+            .style(clock_style)
             .alignment(Alignment::Right),
         clock_area,
     );
@@ -270,6 +339,21 @@ pub fn render(
             },
         );
     }
+    if show_signal {
+        render_signal(
+            frame,
+            area,
+            theme,
+            signal_index,
+            selected
+                .and_then(|i| order.get(i))
+                .and_then(|&idx| processes.get(idx)),
+        );
+    }
+    if net_detail {
+        render_net_detail(frame, area, theme, &snapshot.network);
+    }
+    proc_rect
 }
 
 fn wrap(text: &str, width: usize) -> Vec<String> {
@@ -628,6 +712,109 @@ fn render_settings(frame: &mut Frame, area: Rect, theme: &Theme, settings: &Sett
     );
 }
 
+fn render_signal(
+    frame: &mut Frame,
+    area: Rect,
+    theme: &Theme,
+    index: usize,
+    target: Option<&ProcessInfo>,
+) {
+    let signals = ["Term (SIGTERM)", "Kill (SIGKILL)", "Interrupt (SIGINT)"];
+    let mut lines: Vec<Line> = signals
+        .iter()
+        .enumerate()
+        .map(|(i, label)| {
+            let selected = i == index;
+            let fg = if selected {
+                theme.colors.danger
+            } else {
+                theme.colors.text
+            };
+            let mut line = Line::from(label.to_string()).style(Style::default().fg(fg));
+            if selected {
+                line = line.style(Style::default().bg(theme.colors.highlight));
+            }
+            line
+        })
+        .collect();
+    if let Some(p) = target {
+        lines.insert(0, Line::from(""));
+        lines.insert(
+            0,
+            Line::from(format!("Kill {} (pid {})?", p.name, p.pid))
+                .style(Style::default().fg(theme.colors.text)),
+        );
+    }
+    lines.push(Line::from(""));
+    lines.push(
+        Line::from("↑ / ↓ select  ·  Enter confirm  ·  Esc cancel")
+            .style(Style::default().fg(theme.colors.muted)),
+    );
+
+    let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
+    let height = lines.len() as u16 + 2;
+    let popup = centered_rect(width, height, area);
+    let block = Block::bordered()
+        .title(" Signal ")
+        .title_style(
+            Style::default()
+                .fg(theme.colors.danger)
+                .add_modifier(Modifier::BOLD),
+        )
+        .border_style(Style::default().fg(theme.colors.danger));
+    frame.render_widget(Clear, popup);
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
+    frame.render_widget(
+        Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
+        inner,
+    );
+}
+
+fn render_net_detail(frame: &mut Frame, area: Rect, theme: &Theme, network: &[NetRate]) {
+    let mut lines: Vec<Line> = network
+        .iter()
+        .map(|n| {
+            Line::from(vec![
+                ratatui::text::Span::styled(
+                    format!("{:<12}", n.name),
+                    Style::default().fg(theme.colors.accent),
+                ),
+                ratatui::text::Span::styled(
+                    format!("↓ {}", human_rate(n.rx_bytes_per_sec)),
+                    Style::default().fg(theme.colors.success),
+                ),
+                ratatui::text::Span::styled(
+                    format!("  ↑ {}", human_rate(n.tx_bytes_per_sec)),
+                    Style::default().fg(theme.colors.warning),
+                ),
+            ])
+        })
+        .collect();
+    if lines.is_empty() {
+        lines.push(Line::from("no interfaces").style(Style::default().fg(theme.colors.muted)));
+    }
+
+    let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
+    let height = lines.len() as u16 + 2;
+    let popup = centered_rect(width, height, area);
+    let block = Block::bordered()
+        .title(" Interfaces ")
+        .title_style(
+            Style::default()
+                .fg(theme.colors.accent)
+                .add_modifier(Modifier::BOLD),
+        )
+        .border_style(Style::default().fg(theme.colors.accent));
+    frame.render_widget(Clear, popup);
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
+    frame.render_widget(
+        Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
+        inner,
+    );
+}
+
 fn centered_rect(w: u16, h: u16, area: Rect) -> Rect {
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
@@ -655,39 +842,45 @@ mod tests {
     }
 
     fn draw(frame: &mut Frame, snap: &Snapshot, t: &Theme, history: &History) {
-        let mut proc_rect = Rect::default();
         let proc_history = std::collections::HashMap::new();
+        let order: Vec<usize> = (0..snap.processes.len()).collect();
         render(
             frame,
-            snap,
-            t,
-            None,
-            history,
-            &snap.processes,
-            0,
-            "",
-            false,
-            None,
-            false,
-            false,
-            0,
-            1000,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            None,
-            None,
-            false,
-            "",
-            "",
-            &mut proc_rect,
-            snap.processes.len(),
-            SortKey::Cpu,
-            SortDir::Desc,
-            &proc_history,
+            &RenderContext {
+                snapshot: snap,
+                theme: t,
+                selected: None,
+                history,
+                processes: &snap.processes,
+                order: &order,
+                scroll: 0,
+                filter: "",
+                filtering: false,
+                detail: None,
+                show_help: false,
+                show_settings: false,
+                settings_index: 0,
+                show_signal: false,
+                signal_index: 0,
+                interval_ms: 1000,
+                transparent: false,
+                show_time: false,
+                show_uptime: false,
+                show_labels: false,
+                fullscreen: false,
+                net_detail: false,
+                frozen: false,
+                wan_enabled: false,
+                private_ip: None,
+                wan_ip: None,
+                settings_editing: false,
+                wan_url: "",
+                wan_url_edit: "",
+                total: snap.processes.len(),
+                sort_key: SortKey::Cpu,
+                sort_dir: SortDir::Desc,
+                proc_history: &proc_history,
+            },
         );
     }
 
@@ -696,42 +889,47 @@ mod tests {
         snap: &Snapshot,
         t: &Theme,
         history: &History,
-        processes: &[ProcessInfo],
+        order: &[usize],
         fullscreen: bool,
     ) {
-        let mut proc_rect = Rect::default();
         let proc_history = std::collections::HashMap::new();
         render(
             frame,
-            snap,
-            t,
-            None,
-            history,
-            processes,
-            0,
-            "",
-            false,
-            None,
-            false,
-            false,
-            0,
-            1000,
-            false,
-            false,
-            false,
-            false,
-            fullscreen,
-            false,
-            None,
-            None,
-            false,
-            "",
-            "",
-            &mut proc_rect,
-            processes.len(),
-            SortKey::Cpu,
-            SortDir::Desc,
-            &proc_history,
+            &RenderContext {
+                snapshot: snap,
+                theme: t,
+                selected: None,
+                history,
+                processes: &snap.processes,
+                order,
+                scroll: 0,
+                filter: "",
+                filtering: false,
+                detail: None,
+                show_help: false,
+                show_settings: false,
+                settings_index: 0,
+                show_signal: false,
+                signal_index: 0,
+                interval_ms: 1000,
+                transparent: false,
+                show_time: false,
+                show_uptime: false,
+                show_labels: false,
+                fullscreen,
+                net_detail: false,
+                frozen: false,
+                wan_enabled: false,
+                private_ip: None,
+                wan_ip: None,
+                settings_editing: false,
+                wan_url: "",
+                wan_url_edit: "",
+                total: snap.processes.len(),
+                sort_key: SortKey::Cpu,
+                sort_dir: SortDir::Desc,
+                proc_history: &proc_history,
+            },
         );
     }
 
@@ -803,7 +1001,7 @@ mod tests {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
-            .draw(|f| draw_list(f, &snap, &theme(), &history(), &snap.processes, true))
+            .draw(|f| draw_list(f, &snap, &theme(), &history(), &[0usize], true))
             .unwrap();
         let buffer = terminal.backend().buffer().clone();
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
@@ -827,15 +1025,10 @@ mod tests {
             ],
             ..Default::default()
         };
-        let display = vec![ProcessInfo {
-            pid: 1,
-            name: "keepme".into(),
-            ..Default::default()
-        }];
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
-            .draw(|f| draw_list(f, &snap, &theme(), &history(), &display, false))
+            .draw(|f| draw_list(f, &snap, &theme(), &history(), &[0usize], false))
             .unwrap();
         let buffer = terminal.backend().buffer().clone();
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();

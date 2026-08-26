@@ -50,28 +50,27 @@ impl SysinfoProvider {
             proc_stats_cache: HashMap::new(),
         }
     }
+}
 
-    fn diff_map(
-        prev: &mut HashMap<String, u64>,
-        key: &str,
-        current: u64,
-        elapsed: std::time::Duration,
-    ) -> f64 {
-        let rate = prev
-            .get(key)
-            .map_or(0.0, |p| rate_per_sec(current, *p, elapsed));
-        prev.insert(key.to_string(), current);
-        rate
-    }
+/// Compute the per-second rate of a cumulative counter, storing `current`
+/// under `key` for the next call. Returns 0.0 on the first sample (no
+/// previous value) and when the counter resets (see `rate_per_sec`).
+fn diff_value(
+    prev: &mut HashMap<String, u64>,
+    key: &str,
+    current: u64,
+    elapsed: std::time::Duration,
+) -> f64 {
+    let rate = prev
+        .get(key)
+        .map_or(0.0, |p| rate_per_sec(current, *p, elapsed));
+    prev.insert(key.to_string(), current);
+    rate
 }
 
 impl MetricsProvider for SysinfoProvider {
-    fn kill(&mut self, pid: u32) {
-        let _ = crate::platform::signal::send_signal(
-            &self.system,
-            pid,
-            crate::platform::signal::SignalChoice::Term,
-        );
+    fn kill(&mut self, pid: u32, signal: crate::platform::signal::SignalChoice) {
+        let _ = crate::platform::signal::send_signal(&self.system, pid, signal);
     }
 
     fn sample(&mut self) -> Snapshot {
@@ -138,9 +137,8 @@ impl MetricsProvider for SysinfoProvider {
         let network: Vec<NetRate> = networks
             .iter()
             .map(|(name, data)| {
-                let rx =
-                    Self::diff_map(&mut self.prev_net_rx, name, data.total_received(), elapsed);
-                let tx = Self::diff_map(
+                let rx = diff_value(&mut self.prev_net_rx, name, data.total_received(), elapsed);
+                let tx = diff_value(
                     &mut self.prev_net_tx,
                     name,
                     data.total_transmitted(),
@@ -162,13 +160,13 @@ impl MetricsProvider for SysinfoProvider {
             .map(|d| {
                 let key = d.mount_point().to_string_lossy().to_string();
                 let usage = d.usage();
-                let r = Self::diff_map(
+                let r = diff_value(
                     &mut self.prev_disk_read,
                     &key,
                     usage.total_read_bytes,
                     elapsed,
                 );
-                let w = Self::diff_map(
+                let w = diff_value(
                     &mut self.prev_disk_write,
                     &key,
                     usage.total_written_bytes,
@@ -249,5 +247,35 @@ impl MetricsProvider for SysinfoProvider {
             gpu: self.cached_gpu.clone(),
             fans: self.cached_fans.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn diff_first_sample_is_zero() {
+        let mut prev: HashMap<String, u64> = HashMap::new();
+        let rate = diff_value(&mut prev, "eth0", 1000, Duration::from_secs(1));
+        assert_eq!(rate, 0.0);
+        assert_eq!(prev["eth0"], 1000);
+    }
+
+    #[test]
+    fn diff_computes_rate() {
+        let mut prev: HashMap<String, u64> = HashMap::new();
+        diff_value(&mut prev, "eth0", 1000, Duration::from_secs(1));
+        let rate = diff_value(&mut prev, "eth0", 3000, Duration::from_secs(2));
+        assert_eq!(rate, 1000.0);
+    }
+
+    #[test]
+    fn diff_counter_reset_is_zero() {
+        let mut prev: HashMap<String, u64> = HashMap::new();
+        diff_value(&mut prev, "eth0", 3000, Duration::from_secs(1));
+        let rate = diff_value(&mut prev, "eth0", 100, Duration::from_secs(1));
+        assert_eq!(rate, 0.0);
     }
 }

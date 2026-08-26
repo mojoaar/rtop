@@ -6,15 +6,16 @@ pub mod rate;
 pub mod snapshot;
 pub mod sysinfo_impl;
 
+use crate::platform::signal::SignalChoice;
 use snapshot::Snapshot;
 
 pub trait MetricsProvider {
     fn sample(&mut self) -> Snapshot;
-    fn kill(&mut self, _pid: u32) {}
+    fn kill(&mut self, _pid: u32, _signal: SignalChoice) {}
 }
 
 pub enum Command {
-    Kill(u32),
+    Kill { pid: u32, signal: SignalChoice },
     SetInterval(u64),
 }
 
@@ -34,7 +35,7 @@ pub fn spawn_sampler(
     std::thread::spawn(move || loop {
         loop {
             match cmd_rx.recv_timeout(interval) {
-                Ok(Command::Kill(pid)) => provider.kill(pid),
+                Ok(Command::Kill { pid, signal }) => provider.kill(pid, signal),
                 Ok(Command::SetInterval(ms)) => interval = Duration::from_millis(ms),
                 Err(RecvTimeoutError::Timeout) => break,
                 Err(RecvTimeoutError::Disconnected) => return,

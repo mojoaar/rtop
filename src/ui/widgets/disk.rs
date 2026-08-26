@@ -1,4 +1,4 @@
-use crate::data::format::human_bytes;
+use crate::data::format::{human_bytes, human_rate};
 use crate::data::snapshot::DiskUsage;
 use crate::theme::Theme;
 use crate::ui::widgets::fullness_color;
@@ -29,8 +29,10 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
         Constraint::Length(9),
         Constraint::Length(9),
         Constraint::Length(9),
+        Constraint::Length(8),
+        Constraint::Length(8),
     ];
-    let header = Row::new(vec!["MOUNT", "SIZE", "USED", "FREE"])
+    let header = Row::new(vec!["MOUNT", "SIZE", "USED", "FREE", "READ", "WRITE"])
         .style(Style::default().fg(theme.colors.accent));
 
     let table_rows: Vec<Row> = rows
@@ -48,6 +50,10 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
                 Cell::from(human_bytes(d.total)).style(Style::default().fg(theme.colors.muted)),
                 Cell::from(human_bytes(used)).style(Style::default().fg(used_color)),
                 Cell::from(human_bytes(d.available)).style(Style::default().fg(theme.colors.muted)),
+                Cell::from(human_rate(d.read_bytes_per_sec))
+                    .style(Style::default().fg(theme.colors.muted)),
+                Cell::from(human_rate(d.write_bytes_per_sec))
+                    .style(Style::default().fg(theme.colors.muted)),
             ])
         })
         .collect();

@@ -4,15 +4,18 @@ use crate::data::ip::{self, IpCmd, IpConfig, IpState};
 use crate::data::snapshot::ProcessInfo;
 use crate::data::{self, snapshot::Snapshot, Command};
 use crate::event::{poll_action, Action, Mode};
+use crate::platform::signal::SignalChoice;
 use crate::theme;
 use crate::ui;
 use crate::ui::widgets::processes::{self, SortDir, SortKey};
+use crate::ui::RenderContext;
 use anyhow::Result;
 use ratatui::layout::Rect;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 
 const INTERVAL_PRESETS: [u64; 6] = [100, 250, 500, 1000, 2000, 5000];
+const MIN_INTERVAL_MS: u64 = 50;
 
 fn preset_index(ms: u64) -> usize {
     INTERVAL_PRESETS
@@ -52,6 +55,8 @@ pub struct App {
     show_settings: bool,
     settings_index: usize,
     settings_editing: bool,
+    show_signal: bool,
+    signal_index: usize,
     wan_enabled: bool,
     wan_url: String,
     wan_url_edit: String,
@@ -59,11 +64,13 @@ pub struct App {
     wan_ip: Option<String>,
     ip_tx: Option<Sender<IpCmd>>,
     ip_rx: Receiver<IpState>,
-    display: Vec<ProcessInfo>,
+    display: Vec<usize>,
     scroll: usize,
     detail: Option<ProcessInfo>,
     show_help: bool,
     fullscreen: bool,
+    net_detail: bool,
+    frozen: bool,
     proc_rect: Rect,
     proc_history: HashMap<u32, ProcessHistory>,
 }
@@ -75,7 +82,11 @@ impl App {
             .iter()
             .position(|t| t.name == config.theme.flavor)
             .unwrap_or(0);
-        let theme = themes.get(index).cloned().unwrap();
+        let theme = themes
+            .get(index)
+            .cloned()
+            .or_else(|| crate::theme::catppuccin::get("mocha"))
+            .unwrap_or_else(|| themes[0].clone());
         let (ip_tx, ip_rx) = ip::spawn_ip_monitor(IpConfig {
             enabled: config.general.wan_enabled,
             url: config.general.wan_url.clone(),
@@ -86,10 +97,10 @@ impl App {
             theme,
             themes,
             theme_index: index,
-            sort_key: SortKey::Cpu,
-            sort_dir: SortDir::Desc,
+            sort_key: processes::parse_sort_key(&config.general.sort_key),
+            sort_dir: processes::parse_sort_dir(&config.general.sort_dir),
             selected: None,
-            interval_ms: config.general.interval_ms,
+            interval_ms: config.general.interval_ms.max(MIN_INTERVAL_MS),
             transparent: config.general.transparent,
             show_time: config.general.show_time,
             show_uptime: config.general.show_uptime,
@@ -99,6 +110,8 @@ impl App {
             show_settings: false,
             settings_index: 0,
             settings_editing: false,
+            show_signal: false,
+            signal_index: 0,
             wan_enabled: config.general.wan_enabled,
             wan_url: config.general.wan_url.clone(),
             wan_url_edit: String::new(),
@@ -111,18 +124,26 @@ impl App {
             detail: None,
             show_help: false,
             fullscreen: false,
+            net_detail: false,
+            frozen: false,
             proc_rect: Rect::default(),
             proc_history: HashMap::new(),
         }
     }
 
     fn cycle_theme(&mut self) {
+        if self.themes.is_empty() {
+            return;
+        }
         self.theme_index = (self.theme_index + 1) % self.themes.len();
         self.theme = self.themes[self.theme_index].clone();
         self.save_config();
     }
 
     fn cycle_theme_back(&mut self) {
+        if self.themes.is_empty() {
+            return;
+        }
         let n = self.themes.len();
         self.theme_index = (self.theme_index + n - 1) % n;
         self.theme = self.themes[self.theme_index].clone();
@@ -140,11 +161,15 @@ impl App {
                 show_time: self.show_time,
                 show_uptime: self.show_uptime,
                 show_labels: self.show_labels,
+                sort_key: self.sort_key.as_str().into(),
+                sort_dir: self.sort_dir.as_str().into(),
                 wan_enabled: self.wan_enabled,
                 wan_url: self.wan_url.clone(),
             },
         };
-        let _ = cfg.save();
+        if let Err(e) = cfg.save() {
+            eprintln!("rtop: failed to save config: {e}");
+        }
     }
 
     fn send_ip_update(&self) {
@@ -174,6 +199,23 @@ impl App {
         }
     }
 
+    fn toggle_setting(&mut self, index: usize) {
+        match index {
+            2 => self.transparent = !self.transparent,
+            3 => self.show_time = !self.show_time,
+            4 => self.show_uptime = !self.show_uptime,
+            5 => self.show_labels = !self.show_labels,
+            6 => {
+                self.wan_enabled = !self.wan_enabled;
+                self.save_config();
+                self.send_ip_update();
+                return;
+            }
+            _ => return,
+        }
+        self.save_config();
+    }
+
     fn settings_dec(&mut self, cmd_tx: &std::sync::mpsc::Sender<Command>) {
         match self.settings_index {
             0 => {
@@ -181,28 +223,7 @@ impl App {
                 self.set_interval(ms, cmd_tx);
             }
             1 => self.cycle_theme_back(),
-            2 => {
-                self.transparent = !self.transparent;
-                self.save_config();
-            }
-            3 => {
-                self.show_time = !self.show_time;
-                self.save_config();
-            }
-            4 => {
-                self.show_uptime = !self.show_uptime;
-                self.save_config();
-            }
-            5 => {
-                self.show_labels = !self.show_labels;
-                self.save_config();
-            }
-            6 => {
-                self.wan_enabled = !self.wan_enabled;
-                self.save_config();
-                self.send_ip_update();
-            }
-            _ => {}
+            _ => self.toggle_setting(self.settings_index),
         }
     }
 
@@ -213,40 +234,17 @@ impl App {
                 self.set_interval(ms, cmd_tx);
             }
             1 => self.cycle_theme(),
-            2 => {
-                self.transparent = !self.transparent;
-                self.save_config();
-            }
-            3 => {
-                self.show_time = !self.show_time;
-                self.save_config();
-            }
-            4 => {
-                self.show_uptime = !self.show_uptime;
-                self.save_config();
-            }
-            5 => {
-                self.show_labels = !self.show_labels;
-                self.save_config();
-            }
-            6 => {
-                self.wan_enabled = !self.wan_enabled;
-                self.save_config();
-                self.send_ip_update();
-            }
-            _ => {}
+            _ => self.toggle_setting(self.settings_index),
         }
     }
 
     fn refresh_display(&mut self) {
-        self.display = self
-            .snapshot
-            .processes
-            .iter()
-            .filter(|p| processes::matches_filter(&self.filter, p))
-            .cloned()
+        let procs = &self.snapshot.processes;
+        let mut idx: Vec<usize> = (0..procs.len())
+            .filter(|&i| processes::matches_filter(&self.filter, &procs[i]))
             .collect();
-        processes::sort(&mut self.display, self.sort_key, self.sort_dir);
+        idx.sort_by(|&a, &b| processes::cmp(&procs[a], &procs[b], self.sort_key, self.sort_dir));
+        self.display = idx;
         if let Some(i) = self.selected {
             if i >= self.display.len() {
                 self.selected = None;
@@ -257,6 +255,13 @@ impl App {
             self.scroll = max_scroll;
         }
         self.ensure_visible();
+    }
+
+    fn proc_at(&self, i: usize) -> Option<&ProcessInfo> {
+        self.display
+            .get(i)
+            .copied()
+            .and_then(|idx| self.snapshot.processes.get(idx))
     }
 
     fn visible_rows(&self) -> usize {
@@ -348,7 +353,8 @@ pub fn run(config: &Config) -> Result<()> {
 }
 
 fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result<()> {
-    let interval = std::time::Duration::from_millis(config.general.interval_ms);
+    let interval =
+        std::time::Duration::from_millis(config.general.interval_ms.max(MIN_INTERVAL_MS));
     let provider = data::build_provider();
     let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
     let rx = data::spawn_sampler(provider, interval, cmd_rx);
@@ -358,37 +364,43 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
     loop {
         if dirty {
             terminal.draw(|frame| {
-                ui::render(
+                app.proc_rect = ui::render(
                     frame,
-                    &app.snapshot,
-                    &app.theme,
-                    app.selected,
-                    &app.history,
-                    &app.display,
-                    app.scroll,
-                    &app.filter,
-                    app.filtering,
-                    app.detail.as_ref(),
-                    app.show_help,
-                    app.show_settings,
-                    app.settings_index,
-                    app.interval_ms,
-                    app.transparent,
-                    app.show_time,
-                    app.show_uptime,
-                    app.show_labels,
-                    app.fullscreen,
-                    app.wan_enabled,
-                    app.private_ip.as_deref(),
-                    app.wan_ip.as_deref(),
-                    app.settings_editing,
-                    &app.wan_url,
-                    &app.wan_url_edit,
-                    &mut app.proc_rect,
-                    app.snapshot.processes.len(),
-                    app.sort_key,
-                    app.sort_dir,
-                    &app.proc_history,
+                    &RenderContext {
+                        snapshot: &app.snapshot,
+                        theme: &app.theme,
+                        selected: app.selected,
+                        history: &app.history,
+                        processes: &app.snapshot.processes,
+                        order: &app.display,
+                        scroll: app.scroll,
+                        filter: &app.filter,
+                        filtering: app.filtering,
+                        detail: app.detail.as_ref(),
+                        show_help: app.show_help,
+                        show_settings: app.show_settings,
+                        settings_index: app.settings_index,
+                        show_signal: app.show_signal,
+                        signal_index: app.signal_index,
+                        interval_ms: app.interval_ms,
+                        transparent: app.transparent,
+                        show_time: app.show_time,
+                        show_uptime: app.show_uptime,
+                        show_labels: app.show_labels,
+                        fullscreen: app.fullscreen,
+                        net_detail: app.net_detail,
+                        frozen: app.frozen,
+                        wan_enabled: app.wan_enabled,
+                        private_ip: app.private_ip.as_deref(),
+                        wan_ip: app.wan_ip.as_deref(),
+                        settings_editing: app.settings_editing,
+                        wan_url: &app.wan_url,
+                        wan_url_edit: &app.wan_url_edit,
+                        total: app.snapshot.processes.len(),
+                        sort_key: app.sort_key,
+                        sort_dir: app.sort_dir,
+                        proc_history: &app.proc_history,
+                    },
                 )
             })?;
             dirty = false;
@@ -400,6 +412,8 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             Mode::SettingsEdit
         } else if app.show_settings {
             Mode::Settings
+        } else if app.show_signal {
+            Mode::Signal
         } else {
             Mode::Normal
         };
@@ -410,35 +424,48 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
         }
 
         if let Action::Tick = action {
-            let mut updated = false;
-            while let Ok(snap) = rx.try_recv() {
-                app.snapshot = snap;
-                app.history.record(&app.snapshot);
-                app.record_proc_history();
-                updated = true;
-            }
-            while let Ok(state) = app.ip_rx.try_recv() {
-                app.private_ip = state.private;
-                app.wan_ip = state.wan;
-                updated = true;
-            }
-            if updated {
-                app.refresh_display();
-                if let Some(d) = &app.detail {
-                    if let Some(live) = app.display.iter().find(|p| p.pid == d.pid) {
-                        app.detail = Some(live.clone());
-                    }
+            if app.frozen {
+                while rx.try_recv().is_ok() {}
+                while app.ip_rx.try_recv().is_ok() {}
+            } else {
+                let mut updated = false;
+                while let Ok(snap) = rx.try_recv() {
+                    app.snapshot = snap;
+                    app.history.record(&app.snapshot);
+                    app.record_proc_history();
+                    updated = true;
                 }
-                dirty = true;
+                while let Ok(state) = app.ip_rx.try_recv() {
+                    app.private_ip = state.private;
+                    app.wan_ip = state.wan;
+                    updated = true;
+                }
+                if updated {
+                    app.refresh_display();
+                    if let Some(d) = &app.detail {
+                        if let Some(live) = app
+                            .display
+                            .iter()
+                            .copied()
+                            .find(|&i| app.snapshot.processes[i].pid == d.pid)
+                            .and_then(|i| app.snapshot.processes.get(i))
+                        {
+                            app.detail = Some(live.clone());
+                        }
+                    }
+                    dirty = true;
+                }
             }
         }
 
-        if app.show_help || app.detail.is_some() {
+        if app.show_help || app.detail.is_some() || app.net_detail {
             match action {
                 Action::Quit | Action::OpenDetails | Action::Cancel | Action::ToggleHelp => {
                     app.show_help = false;
                     app.detail = None;
+                    app.net_detail = false;
                 }
+                Action::ToggleNetDetail => app.net_detail = false,
                 _ => {}
             }
             continue;
@@ -482,6 +509,37 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             continue;
         }
 
+        if app.show_signal {
+            match action {
+                Action::SignalUp => {
+                    if app.signal_index > 0 {
+                        app.signal_index -= 1;
+                    }
+                }
+                Action::SignalDown => {
+                    if app.signal_index < 2 {
+                        app.signal_index += 1;
+                    }
+                }
+                Action::SignalConfirm => {
+                    let signal = match app.signal_index {
+                        0 => SignalChoice::Term,
+                        1 => SignalChoice::Kill,
+                        _ => SignalChoice::Interrupt,
+                    };
+                    if let Some(i) = app.selected {
+                        if let Some(p) = app.proc_at(i) {
+                            let _ = cmd_tx.send(Command::Kill { pid: p.pid, signal });
+                        }
+                    }
+                    app.show_signal = false;
+                }
+                Action::SignalCancel | Action::Cancel | Action::Quit => app.show_signal = false,
+                _ => {}
+            }
+            continue;
+        }
+
         if app.filtering {
             match action {
                 Action::FilterChar(c) => {
@@ -519,23 +577,25 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                     app.sort_dir = processes::default_dir(key);
                 }
                 app.refresh_display();
+                app.save_config();
             }
             Action::MoveUp => app.move_up(),
             Action::MoveDown => app.move_down(),
-            Action::Kill => {
-                if let Some(i) = app.selected {
-                    if let Some(p) = app.display.get(i) {
-                        let _ = cmd_tx.send(Command::Kill(p.pid));
-                    }
+            Action::OpenSignal => {
+                if app.selected.is_some() {
+                    app.signal_index = 0;
+                    app.show_signal = true;
                 }
             }
             Action::OpenDetails => {
                 if let Some(i) = app.selected {
-                    app.detail = app.display.get(i).cloned();
+                    app.detail = app.proc_at(i).cloned();
                 }
             }
             Action::ToggleHelp => app.show_help = true,
             Action::ToggleZoom => app.fullscreen = !app.fullscreen,
+            Action::ToggleNetDetail => app.net_detail = !app.net_detail,
+            Action::ToggleFreeze => app.frozen = !app.frozen,
             Action::OpenSettings => app.show_settings = true,
             Action::FilterToggle => app.filtering = true,
             Action::Click(col, row) => app.click(col, row),
@@ -576,6 +636,14 @@ mod tests {
     }
 
     #[test]
+    fn interval_ms_clamped_above_minimum() {
+        let mut config = Config::default();
+        config.general.interval_ms = 0;
+        let app = App::new(&config);
+        assert!(app.interval_ms >= MIN_INTERVAL_MS);
+    }
+
+    #[test]
     fn refresh_display_applies_filter_and_sort() {
         let mut app = App::new(&Config::default());
         app.snapshot.processes = vec![
@@ -603,26 +671,13 @@ mod tests {
         app.sort_dir = SortDir::Desc;
         app.refresh_display();
         assert_eq!(app.display.len(), 1);
-        assert_eq!(app.display[0].name, "firefox");
+        assert_eq!(app.snapshot.processes[app.display[0]].name, "firefox");
     }
 
     #[test]
     fn move_up_and_down_clamp_at_bounds() {
         let mut app = App::new(&Config::default());
-        app.display = vec![
-            ProcessInfo {
-                pid: 1,
-                ..Default::default()
-            },
-            ProcessInfo {
-                pid: 2,
-                ..Default::default()
-            },
-            ProcessInfo {
-                pid: 3,
-                ..Default::default()
-            },
-        ];
+        app.display = vec![0, 1, 2];
         app.move_down();
         assert_eq!(app.selected, Some(0));
         app.move_up();
@@ -635,24 +690,7 @@ mod tests {
     #[test]
     fn click_maps_to_scrolled_index() {
         let mut app = App::new(&Config::default());
-        app.display = vec![
-            ProcessInfo {
-                pid: 1,
-                ..Default::default()
-            },
-            ProcessInfo {
-                pid: 2,
-                ..Default::default()
-            },
-            ProcessInfo {
-                pid: 3,
-                ..Default::default()
-            },
-            ProcessInfo {
-                pid: 4,
-                ..Default::default()
-            },
-        ];
+        app.display = vec![0, 1, 2, 3];
         app.proc_rect = Rect::new(0, 0, 80, 20);
         app.scroll = 1;
         app.click(40, 3);

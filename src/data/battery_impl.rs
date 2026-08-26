@@ -4,9 +4,7 @@ pub fn read_battery() -> Option<BatteryInfo> {
     let manager = battery::Manager::new().ok()?;
     let mut total_capacity = 0.0f32;
     let mut sum_capacity = 0.0f32;
-    let mut state = String::new();
-    let mut time_to_full: Option<u64> = None;
-    let mut time_to_empty: Option<u64> = None;
+    let mut primary: Option<battery::Battery> = None;
     let mut any = false;
 
     for b in manager.batteries().ok()? {
@@ -16,26 +14,34 @@ pub fn read_battery() -> Option<BatteryInfo> {
         let now = battery.energy().value;
         total_capacity += cap;
         sum_capacity += now;
-        state = match battery.state() {
-            battery::State::Charging => "charging",
-            battery::State::Discharging => "discharging",
-            battery::State::Full => "full",
-            battery::State::Empty => "empty",
-            _ => "on AC",
+        if primary.is_none() {
+            primary = Some(battery);
         }
-        .to_string();
-        time_to_full = battery.time_to_full().map(|t| t.value as u64);
-        time_to_empty = battery.time_to_empty().map(|t| t.value as u64);
     }
 
     if !any || total_capacity <= 0.0 {
         return None;
     }
 
+    let state = match primary.as_ref().map(|b| b.state()) {
+        Some(battery::State::Charging) => "charging",
+        Some(battery::State::Discharging) => "discharging",
+        Some(battery::State::Full) => "full",
+        Some(battery::State::Empty) => "empty",
+        _ => "on AC",
+    }
+    .to_string();
+
     Some(BatteryInfo {
         percentage: (sum_capacity / total_capacity * 100.0).clamp(0.0, 100.0),
         state,
-        time_to_full_secs: time_to_full,
-        time_to_empty_secs: time_to_empty,
+        time_to_full_secs: primary
+            .as_ref()
+            .and_then(|b| b.time_to_full())
+            .map(|t| t.value as u64),
+        time_to_empty_secs: primary
+            .as_ref()
+            .and_then(|b| b.time_to_empty())
+            .map(|t| t.value as u64),
     })
 }

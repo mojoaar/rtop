@@ -85,8 +85,10 @@ rtop --theme macchiato --interval 500
 | `t`             | Cycle theme                             |
 | `c` / `m` / `p` / `n` | Sort processes by CPU / memory / PID / name |
 | `↑` / `↓`       | Move process selection                  |
-| `k`             | Kill the selected process               |
+| `k`             | Open the signal menu (Term / Kill / Interrupt) |
 | `f`             | Filter processes by name, user, or PID  |
+| `i`             | Show per-interface network rates        |
+| `space`         | Pause / resume live updates             |
 | `s`             | Open the settings menu                  |
 | `z`             | Toggle full-screen process view         |
 | `Enter`         | Show details for the selected process   |
@@ -97,6 +99,9 @@ rtop --theme macchiato --interval 500
 
 While filtering, type to match process names (case-insensitive), usernames, or
 PIDs, `Enter` to apply, `Esc` to cancel, `Backspace` to delete.
+
+The sort key and direction (set with `c`/`m`/`p`/`n`) persist across sessions
+along with the theme and settings.
 
 ## Themes
 
@@ -154,6 +159,8 @@ transparent = true      # use the terminal's background (false = theme bg)
 show_time = true        # show the clock in the footer
 show_uptime = true      # show system uptime in the footer
 show_labels = true      # show Active/History chart labels
+sort_key = "cpu"        # cpu | memory | pid | name
+sort_dir = "desc"       # asc | desc
 wan_enabled = false     # fetch and display the public (WAN) IP
 wan_url = "https://echo.johansen.foo/api/ip"  # endpoint returning your public IP
 ```

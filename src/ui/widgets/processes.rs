@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Cell, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table};
 use ratatui::Frame;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortKey {
     Cpu,
     Memory,
@@ -27,6 +27,42 @@ pub fn default_dir(key: SortKey) -> SortDir {
     }
 }
 
+impl SortKey {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SortKey::Cpu => "cpu",
+            SortKey::Memory => "memory",
+            SortKey::Pid => "pid",
+            SortKey::Name => "name",
+        }
+    }
+}
+
+impl SortDir {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SortDir::Asc => "asc",
+            SortDir::Desc => "desc",
+        }
+    }
+}
+
+pub fn parse_sort_key(s: &str) -> SortKey {
+    match s {
+        "memory" => SortKey::Memory,
+        "pid" => SortKey::Pid,
+        "name" => SortKey::Name,
+        _ => SortKey::Cpu,
+    }
+}
+
+pub fn parse_sort_dir(s: &str) -> SortDir {
+    match s {
+        "asc" => SortDir::Asc,
+        _ => SortDir::Desc,
+    }
+}
+
 pub struct ProcessView {
     pub selected: Option<usize>,
     pub scroll: usize,
@@ -35,22 +71,20 @@ pub struct ProcessView {
     pub sort_dir: SortDir,
 }
 
-pub fn sort(processes: &mut [ProcessInfo], key: SortKey, dir: SortDir) {
-    processes.sort_by(|a, b| {
-        let ord = match key {
-            SortKey::Cpu => a
-                .cpu_usage
-                .partial_cmp(&b.cpu_usage)
-                .unwrap_or(std::cmp::Ordering::Equal),
-            SortKey::Memory => a.memory_bytes.cmp(&b.memory_bytes),
-            SortKey::Pid => a.pid.cmp(&b.pid),
-            SortKey::Name => a.name.cmp(&b.name),
-        };
-        match dir {
-            SortDir::Asc => ord,
-            SortDir::Desc => ord.reverse(),
-        }
-    });
+pub fn cmp(a: &ProcessInfo, b: &ProcessInfo, key: SortKey, dir: SortDir) -> std::cmp::Ordering {
+    let ord = match key {
+        SortKey::Cpu => a
+            .cpu_usage
+            .partial_cmp(&b.cpu_usage)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        SortKey::Memory => a.memory_bytes.cmp(&b.memory_bytes),
+        SortKey::Pid => a.pid.cmp(&b.pid),
+        SortKey::Name => a.name.cmp(&b.name),
+    };
+    match dir {
+        SortDir::Asc => ord,
+        SortDir::Desc => ord.reverse(),
+    }
 }
 
 pub fn matches_filter(query: &str, p: &ProcessInfo) -> bool {
@@ -58,9 +92,23 @@ pub fn matches_filter(query: &str, p: &ProcessInfo) -> bool {
         return true;
     }
     let q = query.to_lowercase();
-    p.name.to_lowercase().contains(&q)
-        || p.user.to_lowercase().contains(&q)
-        || p.pid.to_string().contains(&q)
+    contains_ci(&p.name, &q) || contains_ci(&p.user, &q) || p.pid.to_string().contains(&q)
+}
+
+fn contains_ci(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    let hay: Vec<char> = haystack.chars().collect();
+    let ndl: Vec<char> = needle.chars().collect();
+    if ndl.len() > hay.len() {
+        return false;
+    }
+    hay.windows(ndl.len()).any(|w| {
+        w.iter()
+            .zip(&ndl)
+            .all(|(a, b)| a.to_lowercase().eq(b.to_lowercase()))
+    })
 }
 
 fn header_label(label: &str, key: Option<SortKey>, active: SortKey, dir: SortDir) -> String {
@@ -79,6 +127,7 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     processes: &[ProcessInfo],
+    order: &[usize],
     view: &ProcessView,
     theme: &Theme,
 ) {
@@ -123,15 +172,17 @@ pub fn render(
     ])
     .style(Style::default().fg(theme.colors.accent));
 
-    let scroll = scroll.min(processes.len().saturating_sub(1));
+    let len = order.len();
+    let scroll = scroll.min(len.saturating_sub(1));
     let visible = (table_area.height as usize).saturating_sub(1);
-    let end = (scroll + visible).min(processes.len());
-    let window = &processes[scroll.min(processes.len())..end];
+    let end = (scroll + visible).min(len);
+    let window = &order[scroll.min(len)..end];
 
     let rows: Vec<Row> = window
         .iter()
         .enumerate()
-        .map(|(i, p)| {
+        .map(|(i, &idx)| {
+            let p = &processes[idx];
             let abs = scroll + i;
             let threads = p
                 .threads
@@ -156,7 +207,7 @@ pub fn render(
 
     frame.render_widget(Table::new(rows, widths).header(header), table_area);
 
-    let mut state = ScrollbarState::new(processes.len())
+    let mut state = ScrollbarState::new(len)
         .position(scroll)
         .viewport_content_length(visible);
     frame.render_stateful_widget(
@@ -185,33 +236,52 @@ mod tests {
     }
 
     #[test]
-    fn sorts_by_cpu_desc() {
-        let mut v = vec![p(1, "a", 10.0, 0), p(2, "b", 50.0, 0), p(3, "c", 30.0, 0)];
-        sort(&mut v, SortKey::Cpu, SortDir::Desc);
-        assert_eq!(v[0].pid, 2);
-        assert_eq!(v[2].pid, 1);
+    fn cmp_cpu_desc() {
+        let a = p(1, "a", 10.0, 0);
+        let b = p(2, "b", 50.0, 0);
+        assert_eq!(
+            cmp(&a, &b, SortKey::Cpu, SortDir::Desc),
+            std::cmp::Ordering::Greater
+        );
     }
 
     #[test]
-    fn sorts_by_cpu_asc() {
-        let mut v = vec![p(1, "a", 10.0, 0), p(2, "b", 50.0, 0), p(3, "c", 30.0, 0)];
-        sort(&mut v, SortKey::Cpu, SortDir::Asc);
-        assert_eq!(v[0].pid, 1);
-        assert_eq!(v[2].pid, 2);
+    fn cmp_cpu_asc() {
+        let a = p(1, "a", 10.0, 0);
+        let b = p(2, "b", 50.0, 0);
+        assert_eq!(
+            cmp(&a, &b, SortKey::Cpu, SortDir::Asc),
+            std::cmp::Ordering::Less
+        );
     }
 
     #[test]
-    fn sorts_by_pid_asc() {
-        let mut v = vec![p(9, "a", 0.0, 0), p(1, "b", 0.0, 0)];
-        sort(&mut v, SortKey::Pid, SortDir::Asc);
-        assert_eq!(v[0].pid, 1);
+    fn cmp_pid_asc() {
+        let a = p(9, "a", 0.0, 0);
+        let b = p(1, "b", 0.0, 0);
+        assert_eq!(
+            cmp(&a, &b, SortKey::Pid, SortDir::Asc),
+            std::cmp::Ordering::Greater
+        );
     }
 
     #[test]
-    fn sorts_by_name_desc() {
-        let mut v = vec![p(1, "alpha", 0.0, 0), p(2, "zebra", 0.0, 0)];
-        sort(&mut v, SortKey::Name, SortDir::Desc);
-        assert_eq!(v[0].name, "zebra");
+    fn cmp_name_desc() {
+        let a = p(1, "alpha", 0.0, 0);
+        let b = p(2, "zebra", 0.0, 0);
+        assert_eq!(
+            cmp(&a, &b, SortKey::Name, SortDir::Desc),
+            std::cmp::Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn contains_ci_substring() {
+        assert!(contains_ci("Firefox", "fire"));
+        assert!(contains_ci("Firefox", "FOX"));
+        assert!(!contains_ci("Firefox", "xyz"));
+        assert!(!contains_ci("ab", "abc"));
+        assert!(contains_ci("ab", ""));
     }
 
     #[test]
@@ -245,5 +315,30 @@ mod tests {
     fn no_match_returns_false() {
         let proc = p(1, "init", 0.0, 0);
         assert!(!matches_filter("zzz", &proc));
+    }
+
+    #[test]
+    fn parse_sort_key_maps_strings() {
+        assert_eq!(parse_sort_key("cpu"), SortKey::Cpu);
+        assert_eq!(parse_sort_key("memory"), SortKey::Memory);
+        assert_eq!(parse_sort_key("pid"), SortKey::Pid);
+        assert_eq!(parse_sort_key("name"), SortKey::Name);
+        assert_eq!(parse_sort_key("bogus"), SortKey::Cpu);
+    }
+
+    #[test]
+    fn parse_sort_dir_maps_strings() {
+        assert_eq!(parse_sort_dir("asc"), SortDir::Asc);
+        assert_eq!(parse_sort_dir("desc"), SortDir::Desc);
+        assert_eq!(parse_sort_dir("bogus"), SortDir::Desc);
+    }
+
+    #[test]
+    fn sort_key_and_dir_round_trip() {
+        for k in [SortKey::Cpu, SortKey::Memory, SortKey::Pid, SortKey::Name] {
+            assert_eq!(parse_sort_key(k.as_str()), k);
+        }
+        assert_eq!(parse_sort_dir(SortDir::Asc.as_str()), SortDir::Asc);
+        assert_eq!(parse_sort_dir(SortDir::Desc.as_str()), SortDir::Desc);
     }
 }

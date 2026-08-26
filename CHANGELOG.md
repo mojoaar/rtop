@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-25
+
 ### Added
+- Multi-signal kill menu (`k`) to terminate the selected process with
+  SIGTERM, SIGKILL, or SIGINT.
+- Per-interface network detail popup (`i`) listing each interface with its
+  download and upload rates.
+- Freeze / pause (`space`) to hold the dashboard at the current snapshot;
+  press again to resume with fresh data.
 - New built-in themes: Dracula, Nord, and GitHub Dark (in addition to the four
   Catppuccin flavors).
 - Settings toggle to show or hide the Active/History chart labels in the CPU,
@@ -16,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three lines with an ellipsis for longer commands).
 
 ### Changed
+- Sort key and direction (set with `c`/`m`/`p`/`n`) now persist across sessions.
+- Disk table gained READ and WRITE I/O columns.
+- Refresh interval is clamped to a 50 ms floor on load (protects against a
+  busy-loop from a zero or negative interval).
+- Reduced per-tick allocation: the process list is rendered from indices
+  (no full-list clone) and filtering is allocation-free.
 - Disk panel now uses a table layout (mount, size, used, free) with the used
   value colored by fullness, instead of a bar with an inlaid percentage.
 - Disk and sensors panels now share the row evenly (50/50) instead of 1:2.
