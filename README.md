@@ -135,6 +135,8 @@ are persisted to the config file:
 | Time        | `on` / `off` (show the clock in the footer)       |
 | Uptime      | `on` / `off` (show uptime in the footer)          |
 | Labels      | `on` / `off` (show Active/History chart labels)   |
+| Sort key    | `cpu`, `memory`, `pid`, `name`                    |
+| Sort dir    | `asc` / `desc`                                    |
 | WAN IP      | `on` / `off` (fetch public IP via the URL below)  |
 | WAN URL     | endpoint returning your public IP (press `Enter` to edit) |
 

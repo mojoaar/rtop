@@ -36,6 +36,24 @@ impl SortKey {
             SortKey::Name => "name",
         }
     }
+
+    pub fn next(self) -> SortKey {
+        match self {
+            SortKey::Cpu => SortKey::Memory,
+            SortKey::Memory => SortKey::Pid,
+            SortKey::Pid => SortKey::Name,
+            SortKey::Name => SortKey::Cpu,
+        }
+    }
+
+    pub fn prev(self) -> SortKey {
+        match self {
+            SortKey::Cpu => SortKey::Name,
+            SortKey::Memory => SortKey::Cpu,
+            SortKey::Pid => SortKey::Memory,
+            SortKey::Name => SortKey::Pid,
+        }
+    }
 }
 
 impl SortDir {
@@ -43,6 +61,13 @@ impl SortDir {
         match self {
             SortDir::Asc => "asc",
             SortDir::Desc => "desc",
+        }
+    }
+
+    pub fn toggle(self) -> SortDir {
+        match self {
+            SortDir::Asc => SortDir::Desc,
+            SortDir::Desc => SortDir::Asc,
         }
     }
 }
@@ -340,5 +365,23 @@ mod tests {
         }
         assert_eq!(parse_sort_dir(SortDir::Asc.as_str()), SortDir::Asc);
         assert_eq!(parse_sort_dir(SortDir::Desc.as_str()), SortDir::Desc);
+    }
+
+    #[test]
+    fn sort_key_next_prev_cycle() {
+        assert_eq!(SortKey::Cpu.next(), SortKey::Memory);
+        assert_eq!(SortKey::Memory.next(), SortKey::Pid);
+        assert_eq!(SortKey::Pid.next(), SortKey::Name);
+        assert_eq!(SortKey::Name.next(), SortKey::Cpu);
+        assert_eq!(SortKey::Cpu.prev(), SortKey::Name);
+        assert_eq!(SortKey::Name.prev(), SortKey::Pid);
+        assert_eq!(SortKey::Pid.prev(), SortKey::Memory);
+        assert_eq!(SortKey::Memory.prev(), SortKey::Cpu);
+    }
+
+    #[test]
+    fn sort_dir_toggle() {
+        assert_eq!(SortDir::Asc.toggle(), SortDir::Desc);
+        assert_eq!(SortDir::Desc.toggle(), SortDir::Asc);
     }
 }

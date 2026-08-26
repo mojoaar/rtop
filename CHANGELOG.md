@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Sort key and direction are now exposed in the settings menu (in addition to
+  the `c`/`m`/`p`/`n` keys and the config file).
+
 ## [0.8.0] - 2026-08-25
 
 ### Added

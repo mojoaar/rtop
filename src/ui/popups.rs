@@ -3,6 +3,7 @@ use crate::data::history::ProcessHistory;
 use crate::data::snapshot::{NetRate, ProcessInfo};
 use crate::theme::Theme;
 use crate::ui::widgets;
+use crate::ui::widgets::processes::{SortDir, SortKey};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
@@ -253,6 +254,8 @@ pub(crate) struct SettingsView<'a> {
     pub(crate) show_time: bool,
     pub(crate) show_uptime: bool,
     pub(crate) show_labels: bool,
+    pub(crate) sort_key: SortKey,
+    pub(crate) sort_dir: SortDir,
     pub(crate) wan_enabled: bool,
     pub(crate) settings_editing: bool,
     pub(crate) wan_url: &'a str,
@@ -272,6 +275,8 @@ pub(crate) fn render_settings(
         show_time,
         show_uptime,
         show_labels,
+        sort_key,
+        sort_dir,
         wan_enabled,
         settings_editing,
         wan_url,
@@ -310,6 +315,8 @@ pub(crate) fn render_settings(
                 "off".into()
             },
         ),
+        ("Sort key", sort_key.as_str().to_string()),
+        ("Sort dir", sort_dir.as_str().to_string()),
         (
             "WAN IP",
             if wan_enabled {

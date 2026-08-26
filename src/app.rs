@@ -194,7 +194,7 @@ impl App {
     }
 
     fn settings_down(&mut self) {
-        if self.settings_index < 7 {
+        if self.settings_index < 9 {
             self.settings_index += 1;
         }
     }
@@ -205,7 +205,7 @@ impl App {
             3 => self.show_time = !self.show_time,
             4 => self.show_uptime = !self.show_uptime,
             5 => self.show_labels = !self.show_labels,
-            6 => {
+            8 => {
                 self.wan_enabled = !self.wan_enabled;
                 self.save_config();
                 self.send_ip_update();
@@ -223,6 +223,16 @@ impl App {
                 self.set_interval(ms, cmd_tx);
             }
             1 => self.cycle_theme_back(),
+            6 => {
+                self.sort_key = self.sort_key.prev();
+                self.refresh_display();
+                self.save_config();
+            }
+            7 => {
+                self.sort_dir = self.sort_dir.toggle();
+                self.refresh_display();
+                self.save_config();
+            }
             _ => self.toggle_setting(self.settings_index),
         }
     }
@@ -234,6 +244,16 @@ impl App {
                 self.set_interval(ms, cmd_tx);
             }
             1 => self.cycle_theme(),
+            6 => {
+                self.sort_key = self.sort_key.next();
+                self.refresh_display();
+                self.save_config();
+            }
+            7 => {
+                self.sort_dir = self.sort_dir.toggle();
+                self.refresh_display();
+                self.save_config();
+            }
             _ => self.toggle_setting(self.settings_index),
         }
     }
@@ -498,7 +518,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 Action::SettingsDec => app.settings_dec(&cmd_tx),
                 Action::SettingsInc => app.settings_inc(&cmd_tx),
                 Action::SettingsActivate => {
-                    if app.settings_index == 7 {
+                    if app.settings_index == 9 {
                         app.wan_url_edit = app.wan_url.clone();
                         app.settings_editing = true;
                     }
