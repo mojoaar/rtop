@@ -6,6 +6,13 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Paragraph, Sparkline};
 use ratatui::Frame;
 
+pub fn is_relevant_interface(name: &str) -> bool {
+    let n = name.to_lowercase();
+    !["lo", "gif", "stf", "awdl", "llw", "anpi", "bridge", "utun"]
+        .iter()
+        .any(|p| n.starts_with(p))
+}
+
 pub struct NetworkView<'a> {
     pub network: &'a [NetRate],
     pub rx_spark: &'a [u64],
@@ -94,4 +101,29 @@ pub fn render(frame: &mut Frame, area: Rect, view: &NetworkView<'_>, theme: &The
         .alignment(Alignment::Right),
         total_area,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_relevant_interface;
+
+    #[test]
+    fn filters_virtual_and_loopback_interfaces() {
+        assert!(!is_relevant_interface("lo0"));
+        assert!(!is_relevant_interface("utun3"));
+        assert!(!is_relevant_interface("awdl0"));
+        assert!(!is_relevant_interface("llw0"));
+        assert!(!is_relevant_interface("anpi1"));
+        assert!(!is_relevant_interface("gif0"));
+        assert!(!is_relevant_interface("stf0"));
+        assert!(!is_relevant_interface("bridge0"));
+    }
+
+    #[test]
+    fn keeps_physical_interfaces() {
+        assert!(is_relevant_interface("en0"));
+        assert!(is_relevant_interface("en1"));
+        assert!(is_relevant_interface("eth0"));
+        assert!(is_relevant_interface("wlan0"));
+    }
 }

@@ -778,6 +778,7 @@ fn render_net_detail(frame: &mut Frame, area: Rect, theme: &Theme, network: &[Ne
     const RATE_W: usize = 15;
     let mut lines: Vec<Line> = network
         .iter()
+        .filter(|n| widgets::network::is_relevant_interface(&n.name))
         .map(|n| {
             Line::from(vec![
                 ratatui::text::Span::styled(
