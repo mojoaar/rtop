@@ -513,20 +513,20 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     ];
 
     let keys: [(&str, &str); 14] = [
-        ("q", "quit"),
-        ("t", "cycle theme"),
-        ("s", "settings"),
-        ("z", "full-screen processes"),
-        ("c/m/p/n", "sort cpu/mem/pid/name"),
         ("↑ / ↓", "move selection"),
-        ("k", "signal menu (term / kill / int)"),
-        ("i", "network interfaces"),
-        ("space", "pause / resume"),
-        ("f", "filter by name / user / pid"),
         ("Enter", "process details"),
+        ("k", "signal menu (term / kill / int)"),
+        ("f", "filter by name / user / pid"),
+        ("c/m/p/n", "sort cpu/mem/pid/name"),
+        ("z", "full-screen processes"),
+        ("i", "network interfaces"),
+        ("s", "settings"),
         ("?", "this help"),
-        ("Esc", "close / cancel"),
+        ("t", "cycle theme"),
+        ("space", "pause / resume"),
         ("mouse", "click = select · scroll = move"),
+        ("Esc", "close / cancel"),
+        ("q", "quit"),
     ];
 
     let footer = [
