@@ -43,6 +43,8 @@ pub fn render(
     left_constraints.push(Constraint::Length(1)); // active gauge
     if show_labels {
         left_constraints.push(Constraint::Length(1)); // history label
+    } else {
+        left_constraints.push(Constraint::Length(1)); // spacer between active/history
     }
     left_constraints.push(Constraint::Length(1)); // history sparkline
     left_constraints.push(Constraint::Min(0));
@@ -70,8 +72,8 @@ pub fn render(
             Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
             left_areas[idx],
         );
-        idx += 1;
     }
+    idx += 1;
     frame.render_widget(
         Sparkline::default()
             .data(spark)
