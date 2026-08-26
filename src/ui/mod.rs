@@ -127,7 +127,7 @@ pub fn render(frame: &mut Frame, ctx: &RenderContext<'_>) -> Rect {
             )
         } else {
             (
-                "z back · q quit · c/m/p/n sort · ↑↓ select · k kill · f filter · s settings · Enter details · ? help"
+                "z back · q quit · c/m/p/n sort · ↑↓ select · k kill · f filter · i network · space pause · s settings · Enter details · ? help"
                     .to_string(),
                 theme.colors.muted,
             )
@@ -277,7 +277,7 @@ pub fn render(frame: &mut Frame, ctx: &RenderContext<'_>) -> Rect {
         )
     } else {
         (
-            "q quit · t theme · z fullscreen · c/m/p/n sort · ↑↓ select · k kill · f filter · s settings · ? help"
+            "q quit · t theme · z fullscreen · c/m/p/n sort · ↑↓ select · k kill · f filter · i network · space pause · s settings · ? help"
                 .to_string(),
             Style::default().fg(theme.colors.muted),
         )
@@ -512,14 +512,16 @@ fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         " ╚═╝  ╚═╝   ╚═╝     ╚═════╝ ╚═╝",
     ];
 
-    let keys: [(&str, &str); 12] = [
+    let keys: [(&str, &str); 14] = [
         ("q", "quit"),
         ("t", "cycle theme"),
         ("s", "settings"),
         ("z", "full-screen processes"),
         ("c/m/p/n", "sort cpu/mem/pid/name"),
         ("↑ / ↓", "move selection"),
-        ("k", "kill selected process"),
+        ("k", "signal menu (term / kill / int)"),
+        ("i", "network interfaces"),
+        ("space", "pause / resume"),
         ("f", "filter by name / user / pid"),
         ("Enter", "process details"),
         ("?", "this help"),
