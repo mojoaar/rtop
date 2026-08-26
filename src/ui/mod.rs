@@ -774,20 +774,22 @@ fn render_signal(
 }
 
 fn render_net_detail(frame: &mut Frame, area: Rect, theme: &Theme, network: &[NetRate]) {
+    const NAME_W: usize = 12;
+    const RATE_W: usize = 15;
     let mut lines: Vec<Line> = network
         .iter()
         .map(|n| {
             Line::from(vec![
                 ratatui::text::Span::styled(
-                    format!("{:<12}", n.name),
+                    format!("{:<NAME_W$}", n.name),
                     Style::default().fg(theme.colors.accent),
                 ),
                 ratatui::text::Span::styled(
-                    format!("↓ {}", human_rate(n.rx_bytes_per_sec)),
+                    format!("↓ {:<RATE_W$}", human_rate(n.rx_bytes_per_sec)),
                     Style::default().fg(theme.colors.success),
                 ),
                 ratatui::text::Span::styled(
-                    format!("  ↑ {}", human_rate(n.tx_bytes_per_sec)),
+                    format!("  ↑ {:<RATE_W$}", human_rate(n.tx_bytes_per_sec)),
                     Style::default().fg(theme.colors.warning),
                 ),
             ])
@@ -797,7 +799,7 @@ fn render_net_detail(frame: &mut Frame, area: Rect, theme: &Theme, network: &[Ne
         lines.push(Line::from("no interfaces").style(Style::default().fg(theme.colors.muted)));
     }
 
-    let width = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
+    let width = (NAME_W + 2 + RATE_W + 4 + RATE_W) as u16 + 4;
     let height = lines.len() as u16 + 2;
     let popup = centered_rect(width, height, area);
     let block = Block::bordered()
