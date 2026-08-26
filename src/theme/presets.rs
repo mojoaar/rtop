@@ -65,28 +65,8 @@ pub fn github_dark() -> Theme {
     }
 }
 
-pub fn github_light() -> Theme {
-    Theme {
-        name: "github-light".to_string(),
-        colors: ThemeColors {
-            bg: rgb(255, 255, 255),
-            fg: rgb(36, 41, 47),
-            text: rgb(36, 41, 47),
-            muted: rgb(87, 96, 106),
-            accent: rgb(9, 105, 218),
-            success: rgb(26, 127, 55),
-            warning: rgb(154, 103, 0),
-            danger: rgb(207, 34, 46),
-            info: rgb(5, 80, 174),
-            surface: rgb(246, 248, 250),
-            border: rgb(208, 215, 222),
-            highlight: rgb(246, 248, 250),
-        },
-    }
-}
-
 pub fn all() -> Vec<Theme> {
-    vec![dracula(), nord(), github_dark(), github_light()]
+    vec![dracula(), nord(), github_dark()]
 }
 
 #[cfg(test)]
@@ -94,8 +74,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn preset_count_is_four() {
-        assert_eq!(all().len(), 4);
+    fn preset_count_is_three() {
+        assert_eq!(all().len(), 3);
     }
 
     #[test]
@@ -106,10 +86,5 @@ mod tests {
     #[test]
     fn nord_accent_is_frost_blue() {
         assert_eq!(nord().colors.accent, Color::Rgb(136, 192, 208));
-    }
-
-    #[test]
-    fn github_light_bg_is_white() {
-        assert_eq!(github_light().colors.bg, Color::Rgb(255, 255, 255));
     }
 }

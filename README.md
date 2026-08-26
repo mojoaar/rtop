@@ -15,8 +15,8 @@ a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
 - Battery status, temperature sensors, and fan speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
   details popup (with CPU/memory history graphs), and process kill
-- Eight built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark, GitHub
-  Light) with runtime cycling and optional transparent background
+- Seven built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark) with runtime
+  cycling and optional transparent background
 - Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average
 - Block-bar usage chart for memory; disk usage table (colored by fullness)
 - In-app settings menu to change refresh rate, theme, transparency, and WAN IP
@@ -74,7 +74,7 @@ rtop --theme macchiato --interval 500
 
 | Flag          | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `--theme`     | Theme: `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark`, `github-light` |
+| `--theme`     | Theme: `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark` |
 | `--interval`  | Refresh interval in milliseconds               |
 
 ## Keybindings
@@ -100,17 +100,16 @@ PIDs, `Enter` to apply, `Esc` to cancel, `Backspace` to delete.
 
 ## Themes
 
-`rtop` ships with eight built-in themes:
+`rtop` ships with seven built-in themes:
 
 - `latte`, `frappe`, `macchiato`, `mocha` — Catppuccin
 - `dracula` — Dracula
 - `nord` — Nord
-- `github-dark`, `github-light` — GitHub
+- `github-dark` — GitHub
 
 Select one at startup with `--theme <name>`, or press `t` at any time to cycle
 through them. The chosen theme is persisted to the config file. Note that the
-light themes (`latte`, `github-light`) read best with `transparent = false` or a
-light terminal.
+light theme (`latte`) reads best with `transparent = false` or a light terminal.
 
 ## Settings menu
 
@@ -121,7 +120,7 @@ are persisted to the config file:
 | Setting     | Values                                            |
 | ----------- | ------------------------------------------------- |
 | Refresh     | `100`, `250`, `500`, `1000`, `2000`, `5000` ms    |
-| Theme       | `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark`, `github-light` |
+| Theme       | `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark` |
 | Transparent | `on` / `off` (terminal background vs theme bg)  |
 | Time        | `on` / `off` (show the clock in the footer)       |
 | Uptime      | `on` / `off` (show uptime in the footer)          |
@@ -146,7 +145,7 @@ Format:
 
 ```toml
 [theme]
-flavor = "mocha"        # latte | frappe | macchiato | mocha | dracula | nord | github-dark | github-light
+flavor = "mocha"        # latte | frappe | macchiato | mocha | dracula | nord | github-dark
 
 [general]
 interval_ms = 500       # sampling + render tick, in milliseconds
