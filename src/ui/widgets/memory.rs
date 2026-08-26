@@ -28,7 +28,6 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
     let pct = ratio * 100.0;
     let color = fullness_color(pct, theme);
     let free = mem.total.saturating_sub(mem.used);
-    let bar = block_bar(ratio, inner.width as usize);
 
     let has_swap = mem.swap_total > 0;
     let constraints: Vec<Constraint> = if has_swap {
@@ -51,16 +50,29 @@ pub fn render(frame: &mut Frame, area: Rect, mem: &MemorySnapshot, spark: &[u64]
     };
     let areas = Layout::vertical(constraints).split(inner);
 
+    let [active_label, active_chart] =
+        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(areas[0]);
+    frame.render_widget(
+        Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
+        active_label,
+    );
+    let bar = block_bar(ratio, active_chart.width as usize);
     frame.render_widget(
         Paragraph::new(bar).style(Style::default().fg(color)),
-        areas[0],
+        active_chart,
     );
 
+    let [history_label, history_chart] =
+        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(areas[2]);
+    frame.render_widget(
+        Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+        history_label,
+    );
     frame.render_widget(
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(color)),
-        areas[2],
+        history_chart,
     );
 
     let values = format!(

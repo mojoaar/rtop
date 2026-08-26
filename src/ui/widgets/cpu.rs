@@ -38,19 +38,31 @@ pub fn render(frame: &mut Frame, area: Rect, cpu: &CpuSnapshot, spark: &[u64], t
     ])
     .areas(left_area);
 
+    let [active_label, gauge_chart] =
+        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(gauge_area);
+    frame.render_widget(
+        Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
+        active_label,
+    );
     frame.render_widget(
         Gauge::default()
             .gauge_style(Style::default().fg(theme.colors.accent))
             .ratio((cpu.global_usage.clamp(0.0, 100.0) / 100.0) as f64)
             .label(format!("{:.0}%", cpu.global_usage)),
-        gauge_area,
+        gauge_chart,
     );
 
+    let [history_label, spark_chart] =
+        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(spark_area);
+    frame.render_widget(
+        Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+        history_label,
+    );
     frame.render_widget(
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(theme.colors.accent)),
-        spark_area,
+        spark_chart,
     );
 
     let mut info = String::new();

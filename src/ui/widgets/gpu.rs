@@ -26,11 +26,17 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
             Constraint::Length(1),
         ])
         .areas(inner);
+        let [history_label, spark_chart] =
+            Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(spark_area);
+        frame.render_widget(
+            Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+            history_label,
+        );
         frame.render_widget(
             Sparkline::default()
                 .data(spark)
                 .style(Style::default().fg(theme.colors.info)),
-            spark_area,
+            spark_chart,
         );
         frame.render_widget(
             Paragraph::new("n/a")
@@ -50,19 +56,31 @@ pub fn render(frame: &mut Frame, area: Rect, gpu: Option<&GpuInfo>, spark: &[u64
     ])
     .areas(inner);
 
+    let [active_label, gauge_chart] =
+        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(gauge_area);
+    frame.render_widget(
+        Paragraph::new("Active").style(Style::default().fg(theme.colors.muted)),
+        active_label,
+    );
     frame.render_widget(
         Gauge::default()
             .gauge_style(Style::default().fg(theme.colors.info))
             .ratio((gpu.utilization_percent.clamp(0.0, 100.0) / 100.0) as f64)
             .label(format!("{:.0}%", gpu.utilization_percent)),
-        gauge_area,
+        gauge_chart,
     );
 
+    let [history_label, spark_chart] =
+        Layout::horizontal([Constraint::Length(7), Constraint::Min(0)]).areas(spark_area);
+    frame.render_widget(
+        Paragraph::new("History").style(Style::default().fg(theme.colors.muted)),
+        history_label,
+    );
     frame.render_widget(
         Sparkline::default()
             .data(spark)
             .style(Style::default().fg(theme.colors.info)),
-        spark_area,
+        spark_chart,
     );
 
     let mem_label = if gpu.memory_total_bytes == 0 {
