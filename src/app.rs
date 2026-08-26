@@ -69,7 +69,7 @@ pub struct App {
 
 impl App {
     pub fn new(config: &Config) -> Self {
-        let themes = theme::catppuccin::all();
+        let themes = theme::all();
         let index = themes
             .iter()
             .position(|t| t.name == config.theme.flavor)

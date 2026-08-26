@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New built-in themes: Dracula, Nord, and GitHub Dark / GitHub Light (in addition
+  to the four Catppuccin flavors).
+
 ### Changed
 - Disk panel now uses a table layout (mount, size, used, free) with the used
   value colored by fullness, instead of a bar with an inlaid percentage.

@@ -2,8 +2,8 @@
 
 A beautiful terminal system monitor in the style of `top` and `bpytop`, written in
 Rust with [ratatui] + [crossterm]. It renders a live dashboard of CPU, memory,
-GPU, network, disk, battery & sensors, and a sortable process table — all themed
-with [Catppuccin].
+GPU, network, disk, battery & sensors, and a sortable process table — themed with
+a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
 
 [ratatui]: https://ratatui.rs
 [crossterm]: https://github.com/crossterm-rs/crossterm
@@ -15,9 +15,10 @@ with [Catppuccin].
 - Battery status, temperature sensors, and fan speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
   details popup (with CPU/memory history graphs), and process kill
-- Four Catppuccin flavors with runtime theme cycling and optional transparent background
+- Eight built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark, GitHub
+  Light) with runtime cycling and optional transparent background
 - Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average
-- Block-bar usage charts for memory and disk (colored by fullness)
+- Block-bar usage chart for memory; disk usage table (colored by fullness)
 - In-app settings menu to change refresh rate, theme, transparency, and WAN IP
   live
 - Config file for theme and refresh interval, overridable via CLI flags
@@ -73,7 +74,7 @@ rtop --theme macchiato --interval 500
 
 | Flag          | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `--theme`     | Catppuccin flavor: `latte`, `frappe`, `macchiato`, `mocha` |
+| `--theme`     | Theme: `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark`, `github-light` |
 | `--interval`  | Refresh interval in milliseconds               |
 
 ## Keybindings
@@ -81,7 +82,7 @@ rtop --theme macchiato --interval 500
 | Key             | Action                                  |
 | --------------- | --------------------------------------- |
 | `q`             | Quit                                    |
-| `t`             | Cycle Catppuccin theme                  |
+| `t`             | Cycle theme                             |
 | `c` / `m` / `p` / `n` | Sort processes by CPU / memory / PID / name |
 | `↑` / `↓`       | Move process selection                  |
 | `k`             | Kill the selected process               |
@@ -99,15 +100,17 @@ PIDs, `Enter` to apply, `Esc` to cancel, `Backspace` to delete.
 
 ## Themes
 
-`rtop` ships with all four Catppuccin flavors:
+`rtop` ships with eight built-in themes:
 
-- `latte`
-- `frappe`
-- `macchiato`
-- `mocha`
+- `latte`, `frappe`, `macchiato`, `mocha` — Catppuccin
+- `dracula` — Dracula
+- `nord` — Nord
+- `github-dark`, `github-light` — GitHub
 
-Select one at startup with `--theme <flavor>`, or press `t` at any time to cycle
-through them. The chosen flavor is persisted to the config file.
+Select one at startup with `--theme <name>`, or press `t` at any time to cycle
+through them. The chosen theme is persisted to the config file. Note that the
+light themes (`latte`, `github-light`) read best with `transparent = false` or a
+light terminal.
 
 ## Settings menu
 
@@ -118,8 +121,8 @@ are persisted to the config file:
 | Setting     | Values                                            |
 | ----------- | ------------------------------------------------- |
 | Refresh     | `100`, `250`, `500`, `1000`, `2000`, `5000` ms    |
-| Theme       | `latte`, `frappe`, `macchiato`, `mocha`           |
-| Transparent | `on` / `off` (terminal background vs Catppuccin)  |
+| Theme       | `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark`, `github-light` |
+| Transparent | `on` / `off` (terminal background vs theme bg)  |
 | Time        | `on` / `off` (show the clock in the footer)       |
 | Uptime      | `on` / `off` (show uptime in the footer)          |
 | WAN IP      | `on` / `off` (fetch public IP via the URL below)  |
@@ -143,11 +146,11 @@ Format:
 
 ```toml
 [theme]
-flavor = "mocha"        # latte | frappe | macchiato | mocha
+flavor = "mocha"        # latte | frappe | macchiato | mocha | dracula | nord | github-dark | github-light
 
 [general]
 interval_ms = 500       # sampling + render tick, in milliseconds
-transparent = true      # use the terminal's background (false = Catppuccin bg)
+transparent = true      # use the terminal's background (false = theme bg)
 show_time = true        # show the clock in the footer
 show_uptime = true      # show system uptime in the footer
 wan_enabled = false     # fetch and display the public (WAN) IP
