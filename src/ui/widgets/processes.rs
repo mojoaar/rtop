@@ -174,6 +174,7 @@ mod tests {
         ProcessInfo {
             pid,
             name: name.into(),
+            cmd: String::new(),
             cpu_usage: cpu,
             memory_bytes: mem,
             status: "Running".into(),

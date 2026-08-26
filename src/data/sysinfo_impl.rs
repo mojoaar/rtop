@@ -83,8 +83,17 @@ impl MetricsProvider for SysinfoProvider {
 
         self.system.refresh_cpu_all();
         self.system.refresh_memory();
-        self.system
-            .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+        self.system.refresh_processes_specifics(
+            sysinfo::ProcessesToUpdate::All,
+            true,
+            sysinfo::ProcessRefreshKind::nothing()
+                .with_memory()
+                .with_cpu()
+                .with_disk_usage()
+                .with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
+                .with_tasks()
+                .with_cmd(sysinfo::UpdateKind::OnlyIfNotSet),
+        );
 
         let networks = Networks::new_with_refreshed_list();
         let disks = Disks::new_with_refreshed_list();
@@ -206,6 +215,12 @@ impl MetricsProvider for SysinfoProvider {
             processes.push(ProcessInfo {
                 pid: pid.as_u32(),
                 name: p.name().to_string_lossy().to_string(),
+                cmd: p
+                    .cmd()
+                    .iter()
+                    .map(|a| a.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
                 cpu_usage: p.cpu_usage(),
                 memory_bytes: p.memory(),
                 status: format!("{:?}", p.status()),

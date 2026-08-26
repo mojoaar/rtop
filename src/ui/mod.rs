@@ -272,6 +272,49 @@ pub fn render(
     }
 }
 
+fn wrap(text: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        let wc = word.chars().count();
+        if current.is_empty() {
+            if wc <= width {
+                current.push_str(word);
+            } else {
+                let mut rest = word.to_string();
+                while !rest.is_empty() {
+                    let take: String = rest.chars().take(width).collect();
+                    lines.push(take);
+                    rest = rest.chars().skip(width).collect();
+                }
+            }
+        } else if current.chars().count() + 1 + wc <= width {
+            current.push(' ');
+            current.push_str(word);
+        } else {
+            lines.push(std::mem::take(&mut current));
+            if wc <= width {
+                current.push_str(word);
+            } else {
+                let mut rest = word.to_string();
+                while !rest.is_empty() {
+                    let take: String = rest.chars().take(width).collect();
+                    lines.push(take);
+                    rest = rest.chars().skip(width).collect();
+                }
+            }
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}
+
 fn render_detail(
     frame: &mut Frame,
     area: Rect,
@@ -279,7 +322,7 @@ fn render_detail(
     history: Option<&ProcessHistory>,
     theme: &Theme,
 ) {
-    let lines = vec![
+    let info_lines = vec![
         Line::from(format!("PID: {}", p.pid)),
         Line::from(format!("Name: {}", p.name)),
         Line::from(format!("User: {}", p.user)),
@@ -298,9 +341,21 @@ fn render_detail(
         )),
         Line::from(format!("State: {}", p.status)),
     ];
-    let info_w = lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
-    let width = info_w.max(44);
-    let height = lines.len() as u16 + 2 + 2 + 2;
+    let info_w = info_lines.iter().map(|l| l.width()).max().unwrap_or(20) as u16 + 4;
+    let width = info_w.max(44).min(area.width.saturating_sub(4).max(20));
+
+    let cmd_text = format!("Cmd: {}", p.cmd);
+    let text_width = (width.saturating_sub(2)).max(1) as usize;
+    let mut cmd_lines = wrap(&cmd_text, text_width);
+    if cmd_lines.len() > 3 {
+        cmd_lines.truncate(3);
+        if let Some(last) = cmd_lines.last_mut() {
+            last.push('…');
+        }
+    }
+    let n_cmd = cmd_lines.len().max(1) as u16;
+
+    let height = info_lines.len() as u16 + n_cmd + 2 + 4;
     let popup = centered_rect(width, height, area);
     let block = Block::bordered()
         .title(" Process ")
@@ -314,16 +369,23 @@ fn render_detail(
     let inner = block.inner(popup);
     frame.render_widget(block, popup);
 
-    let [info_area, cpu_spark_area, mem_spark_area] = Layout::vertical([
-        Constraint::Length(lines.len() as u16),
+    let [info_area, cmd_area, cpu_spark_area, mem_spark_area] = Layout::vertical([
+        Constraint::Length(info_lines.len() as u16),
+        Constraint::Length(n_cmd),
         Constraint::Length(1),
         Constraint::Length(1),
     ])
     .areas(inner);
 
     frame.render_widget(
-        Paragraph::new(lines).style(Style::default().fg(theme.colors.text)),
+        Paragraph::new(info_lines).style(Style::default().fg(theme.colors.text)),
         info_area,
+    );
+
+    let cmd_paragraph_lines: Vec<Line> = cmd_lines.into_iter().map(Line::from).collect();
+    frame.render_widget(
+        Paragraph::new(cmd_paragraph_lines).style(Style::default().fg(theme.colors.text)),
+        cmd_area,
     );
 
     let cpu_series = history.map(|h| h.cpu_series()).unwrap_or_default();
@@ -671,6 +733,26 @@ mod tests {
             SortDir::Desc,
             &proc_history,
         );
+    }
+
+    #[test]
+    fn wrap_splits_at_word_boundary() {
+        assert_eq!(wrap("abc def ghi", 7), vec!["abc def", "ghi"]);
+    }
+
+    #[test]
+    fn wrap_hard_breaks_long_word() {
+        assert_eq!(wrap("abcdefgh", 4), vec!["abcd", "efgh"]);
+    }
+
+    #[test]
+    fn wrap_short_fits_single_line() {
+        assert_eq!(wrap("abc def", 10), vec!["abc def"]);
+    }
+
+    #[test]
+    fn wrap_empty_returns_single_empty() {
+        assert_eq!(wrap("", 5), vec![""]);
     }
 
     #[test]

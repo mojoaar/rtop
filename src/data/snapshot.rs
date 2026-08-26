@@ -60,6 +60,7 @@ pub struct DiskUsage {
 pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
+    pub cmd: String,
     pub cpu_usage: f32,
     pub memory_bytes: u64,
     pub status: String,

@@ -14,7 +14,7 @@ a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
   private/WAN IP in the header), and disk usage
 - Battery status, temperature sensors, and fan speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
-  details popup (with CPU/memory history graphs), and process kill
+  details popup (with command line, CPU/memory history graphs), and process kill
 - Seven built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark) with runtime
   cycling and optional transparent background
 - Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average

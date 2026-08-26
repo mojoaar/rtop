@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Catppuccin flavors).
 - Settings toggle to show or hide the Active/History chart labels in the CPU,
   memory, and GPU panels (default on).
+- Process details popup now shows the full command line (wrapped, truncated to
+  three lines with an ellipsis for longer commands).
 
 ### Changed
 - Disk panel now uses a table layout (mount, size, used, free) with the used
