@@ -8,6 +8,10 @@ a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
 [ratatui]: https://ratatui.rs
 [crossterm]: https://github.com/crossterm-rs/crossterm
 
+## Demo
+
+![rtop demo](assets/rtop-demo.gif)
+
 ## Features
 
 - Live CPU (global + per-core), memory & swap, GPU, network I/O rates (with
