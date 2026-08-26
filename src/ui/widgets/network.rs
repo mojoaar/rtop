@@ -6,6 +6,18 @@ use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Paragraph, Sparkline};
 use ratatui::Frame;
 
+pub fn active_interface(network: &[NetRate]) -> Option<&str> {
+    network
+        .iter()
+        .filter(|n| !n.name.starts_with("lo"))
+        .max_by(|a, b| {
+            let ta = a.rx_bytes_per_sec + a.tx_bytes_per_sec;
+            let tb = b.rx_bytes_per_sec + b.tx_bytes_per_sec;
+            ta.partial_cmp(&tb).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .map(|n| n.name.as_str())
+}
+
 pub struct NetworkView<'a> {
     pub network: &'a [NetRate],
     pub rx_spark: &'a [u64],
@@ -29,11 +41,12 @@ pub fn render(frame: &mut Frame, area: Rect, view: &NetworkView<'_>, theme: &The
         wan_enabled,
     } = *view;
     let private = private_ip.unwrap_or("n/a");
+    let iface = active_interface(network).unwrap_or("n/a");
     let title = if wan_enabled {
         let wan = wan_ip.unwrap_or("n/a");
-        format!(" Network · prv {private} · wan {wan} ")
+        format!(" Network · {iface} · prv {private} · wan {wan} ")
     } else {
-        format!(" Network · prv {private} ")
+        format!(" Network · {iface} · prv {private} ")
     };
     let block = Block::bordered()
         .title(title)
@@ -94,4 +107,40 @@ pub fn render(frame: &mut Frame, area: Rect, view: &NetworkView<'_>, theme: &The
         .alignment(Alignment::Right),
         total_area,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rate(name: &str, rx: f64, tx: f64) -> NetRate {
+        NetRate {
+            name: name.to_string(),
+            rx_bytes_per_sec: rx,
+            tx_bytes_per_sec: tx,
+        }
+    }
+
+    #[test]
+    fn active_interface_empty_is_none() {
+        assert_eq!(active_interface(&[]), None);
+    }
+
+    #[test]
+    fn active_interface_loopback_only_is_none() {
+        let rates = [rate("lo0", 100.0, 50.0)];
+        assert_eq!(active_interface(&rates), None);
+    }
+
+    #[test]
+    fn active_interface_picks_busiest() {
+        let rates = [rate("en0", 100.0, 50.0), rate("en1", 10.0, 10.0)];
+        assert_eq!(active_interface(&rates), Some("en0"));
+    }
+
+    #[test]
+    fn active_interface_excludes_loopback() {
+        let rates = [rate("lo0", 9999.0, 9999.0), rate("en0", 100.0, 50.0)];
+        assert_eq!(active_interface(&rates), Some("en0"));
+    }
 }

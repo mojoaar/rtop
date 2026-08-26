@@ -1,7 +1,7 @@
 use crate::data::format::human_bytes;
 use crate::data::snapshot::DiskUsage;
 use crate::theme::Theme;
-use crate::ui::widgets::{block_bar, fullness_color};
+use crate::ui::widgets::{bar_label_split, block_bar, fullness_color};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -50,13 +50,22 @@ pub fn render(frame: &mut Frame, area: Rect, disks: &[DiskUsage], theme: &Theme)
                 format!("free {}", human_bytes(d.available)),
                 Style::default().fg(color),
             ),
-            Span::styled(format!("  ({:.0}%)", pct), Style::default().fg(color)),
         ]);
         frame.render_widget(Paragraph::new(label), text_area);
-        frame.render_widget(
-            Paragraph::new(block_bar(ratio, bar_area.width as usize))
-                .style(Style::default().fg(color)),
-            bar_area,
-        );
+
+        let pct_label = format!("{:.0}%", pct);
+        let bar = block_bar(ratio, bar_area.width as usize);
+        let bar_line = match bar_label_split(&bar, &pct_label) {
+            Some((left, right)) => Line::from(vec![
+                Span::styled(left, Style::default().fg(color)),
+                Span::styled(pct_label, Style::default().fg(theme.colors.text)),
+                Span::styled(right, Style::default().fg(color)),
+            ]),
+            None => Line::from(Span::styled(
+                pct_label,
+                Style::default().fg(theme.colors.text),
+            )),
+        };
+        frame.render_widget(Paragraph::new(bar_line), bar_area);
     }
 }

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Network panel header shows the active (busiest non-loopback) interface.
+
+### Changed
+- Disk usage percentage is now rendered inside the bar, in the theme text color
+  for readability instead of white.
+
 ## [0.6.0] - 2026-08-25
 
 ### Added
