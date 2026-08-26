@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-25
+
+### Added
+- Linux GPU support (NVIDIA via NVML, AMD and Intel via the DRM sysfs
+  interface) and Linux fan speed via the hwmon sysfs interface.
+- Battery cycle count and health percentage in the sensors panel (where the
+  platform exposes them).
+
+### Changed
+- GPU panel title shows the vendor name (Apple, AMD/Intel, NVIDIA, …) instead
+  of a generic "GPU".
+- Removed unused snapshot fields and marked test-only ring-buffer helpers as
+  `#[cfg(test)]`.
+- macOS-only dependencies (`core-foundation`, `smc-lib`) are now target-gated
+  so the crate builds on Linux and Windows.
+
 ## [0.7.0] - 2026-08-25
 
 ### Added

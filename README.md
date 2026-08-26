@@ -12,7 +12,8 @@ a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
 
 - Live CPU (global + per-core), memory & swap, GPU, network I/O rates (with
   private/WAN IP in the header), and disk usage
-- Battery status, temperature sensors, and fan speeds (where available)
+- Battery status (with cycle count and health), temperature sensors, and fan
+  speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
   details popup (with command line, CPU/memory history graphs), and process kill
 - Seven built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark) with runtime
@@ -176,8 +177,8 @@ The file is created automatically when you cycle themes (`t`).
 | Processes (list/sort/kill)     |  ✓    |  ✓    |   ✓*    |
 | Battery                        |  ✓    |  ✓    |   ✓     |
 | Temperatures                   |  ✓    |  ✓*   |   ✓*    |
-| GPU utilization & memory       |  ✓    |  —    |   —     |
-| Fan speed (SMC)                |  ✓    |  —    |   —     |
+| GPU utilization & memory       |  ✓    |  ✓    |   —     |
+| Fan speed                      |  ✓    |  ✓    |   —     |
 
 `*` — provided by the cross-platform `sysinfo` backend; platform-specific
 behavior may vary.
@@ -185,6 +186,8 @@ behavior may vary.
 **macOS** is the reference platform and is fully supported, including GPU
 (IOKit `PerformanceStatistics`) and fan speed (SMC via `smc-lib`).
 
-**Linux** and **Windows** are partially supported: CPU, memory, network, disk,
-and processes work through `sysinfo`, but GPU and fan metrics are macOS-only for
-now and render as `n/a`. Missing sensors degrade gracefully rather than crashing.
+**Linux** supports GPU metrics through NVIDIA NVML or the DRM sysfs interface
+(AMD/Intel) and fan speed through hwmon. **Windows** supports CPU, memory,
+network, disk, battery, temperatures, and processes through `sysinfo`, but GPU
+and fan metrics are not yet implemented and render as `n/a`. Missing sensors
+degrade gracefully rather than crashing.
