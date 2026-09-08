@@ -10,11 +10,14 @@ mod theme;
 mod ui;
 
 #[derive(Parser)]
-#[command(name = "rtop", about = "A beautiful terminal system monitor")]
+#[command(name = "rtop", version, about = "A beautiful terminal system monitor")]
 struct Cli {
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Theme: latte, frappe, macchiato, mocha, dracula, nord, github-dark"
+    )]
     theme: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Refresh interval in milliseconds")]
     interval: Option<u64>,
 }
 

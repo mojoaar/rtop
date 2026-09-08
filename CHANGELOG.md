@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--version` flag (and `-V` short form) printing the crate version.
+- Help text for the `--theme` and `--interval` flags.
+
 ### Changed
 - Linux GPU panel now shows the real model name (resolved from the system
   `pci.ids` database, e.g. `AMD HawkPoint2`) instead of a generic `AMD` /
