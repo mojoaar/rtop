@@ -55,6 +55,27 @@ launch. If you see a "cannot be opened" warning, clear the quarantine flag:
 xattr -d com.apple.quarantine /usr/local/bin/rtop
 ```
 
+### Prebuilt binaries (Linux)
+
+Prebuilt x86_64 Linux binaries are attached to each [GitHub release] in two
+variants:
+
+- `x86_64-unknown-linux-gnu` — dynamically linked against glibc, for
+  glibc-based distros (Arch, Ubuntu, Fedora, Debian, etc.)
+- `x86_64-unknown-linux-musl` — statically linked, portable across any Linux
+  distro regardless of installed libc
+
+Download the tarball for your variant, extract it, and put `rtop` on your
+`PATH`:
+
+```sh
+tar -xzf rtop-v0.8.1-x86_64-unknown-linux-gnu.tar.gz
+sudo install -m 755 rtop /usr/local/bin/rtop
+```
+
+> **Note:** the WAN IP feature shells out to `curl`. Most distros ship it by
+> default, but if the WAN address shows `n/a`, install `curl`.
+
 [GitHub release]: https://github.com/mojoaar/rtop/releases
 
 ## Usage

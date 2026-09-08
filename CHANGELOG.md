@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-25
+
 ### Added
 - Sort key and direction are now exposed in the settings menu (in addition to
   the `c`/`m`/`p`/`n` keys and the config file).
+- Prebuilt Linux binaries for `x86_64` (glibc and musl) published with each
+  release.
+- Linux CI job (clippy, test, and musl target check).
 
 ## [0.8.0] - 2026-08-25
 
