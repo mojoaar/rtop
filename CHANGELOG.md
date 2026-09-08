@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Linux GPU panel now shows the real model name (resolved from the system
+  `pci.ids` database, e.g. `AMD HawkPoint2`) instead of a generic `AMD` /
+  `Intel` label, falling back to the vendor name when the model is unknown.
+
 ## [0.8.1] - 2026-08-25
 
 ### Added
