@@ -16,6 +16,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 const INTERVAL_PRESETS: [u64; 6] = [100, 250, 500, 1000, 2000, 5000];
 const MIN_INTERVAL_MS: u64 = 50;
+const HISTORY_LEN: usize = 120;
 
 fn preset_index(ms: u64) -> usize {
     INTERVAL_PRESETS
@@ -93,7 +94,7 @@ impl App {
         });
         Self {
             snapshot: Snapshot::default(),
-            history: History::new(120),
+            history: History::new(HISTORY_LEN),
             theme,
             themes,
             theme_index: index,
@@ -336,15 +337,17 @@ impl App {
     }
 
     fn record_proc_history(&mut self) {
-        let mut alive = std::collections::HashSet::new();
-        for p in &self.snapshot.processes {
-            alive.insert(p.pid);
+        let Some(pid) = self.selected_pid() else {
+            self.proc_history.clear();
+            return;
+        };
+        self.proc_history.retain(|p, _| *p == pid);
+        if let Some(p) = self.snapshot.processes.iter().find(|p| p.pid == pid) {
             self.proc_history
-                .entry(p.pid)
-                .or_insert_with(|| ProcessHistory::new(120))
+                .entry(pid)
+                .or_insert_with(|| ProcessHistory::new(HISTORY_LEN))
                 .record(p.cpu_usage, p.memory_bytes);
         }
-        self.proc_history.retain(|pid, _| alive.contains(pid));
     }
 
     fn click(&mut self, col: u16, row: u16) {
@@ -462,7 +465,6 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 while let Ok(snap) = rx.try_recv() {
                     app.snapshot = snap;
                     app.history.record(&app.snapshot);
-                    app.record_proc_history();
                     updated = true;
                 }
                 while let Ok(state) = app.ip_rx.try_recv() {
@@ -472,6 +474,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 }
                 if updated {
                     app.rebuild_display(keep);
+                    app.record_proc_history();
                     if let Some(d) = &app.detail {
                         if let Some(live) = app
                             .display
@@ -768,6 +771,28 @@ mod tests {
         app.snapshot.processes.retain(|p| p.pid != 2);
         app.refresh_display();
         assert_eq!(app.selected, None);
+    }
+
+    #[test]
+    fn history_tracks_only_selected_process() {
+        let mut app = App::new(&Config::default());
+        app.snapshot.processes = vec![
+            ProcessInfo {
+                pid: 1,
+                cpu_usage: 10.0,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 2,
+                cpu_usage: 50.0,
+                ..Default::default()
+            },
+        ];
+        app.refresh_display();
+        app.selected = Some(0);
+        app.record_proc_history();
+        assert_eq!(app.proc_history.len(), 1);
+        assert!(app.proc_history.contains_key(&2));
     }
 
     #[test]
