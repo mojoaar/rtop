@@ -30,6 +30,14 @@ pub fn format_duration_secs(secs: u64) -> String {
     }
 }
 
+/// Replace control characters so untrusted names and command lines cannot
+/// emit terminal escape sequences.
+pub fn sanitize_text(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,5 +62,12 @@ mod tests {
         assert_eq!(format_duration_secs(90), "1m 30s");
         assert_eq!(format_duration_secs(3600), "1h 0m");
         assert_eq!(format_duration_secs(7325), "2h 2m");
+    }
+
+    #[test]
+    fn sanitize_replaces_control_characters() {
+        assert_eq!(sanitize_text("a\u{1b}[31m\nb\tc"), "a [31m b c");
+        assert_eq!(sanitize_text("plain"), "plain");
+        assert_eq!(sanitize_text("x\u{0}y"), "x y");
     }
 }

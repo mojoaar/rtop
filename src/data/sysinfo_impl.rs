@@ -1,4 +1,5 @@
 use crate::data::battery_impl::read_battery;
+use crate::data::format::sanitize_text;
 use crate::data::rate::rate_per_sec;
 use crate::data::snapshot::*;
 use crate::data::MetricsProvider;
@@ -219,13 +220,14 @@ impl MetricsProvider for SysinfoProvider {
             );
             processes.push(ProcessInfo {
                 pid: pid.as_u32(),
-                name: p.name().to_string_lossy().to_string(),
-                cmd: p
-                    .cmd()
-                    .iter()
-                    .map(|a| a.to_string_lossy().to_string())
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                name: sanitize_text(&p.name().to_string_lossy()),
+                cmd: sanitize_text(
+                    &p.cmd()
+                        .iter()
+                        .map(|a| a.to_string_lossy().to_string())
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                ),
                 cpu_usage: p.cpu_usage(),
                 memory_bytes: p.memory(),
                 status: format!("{:?}", p.status()),
