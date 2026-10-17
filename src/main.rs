@@ -14,7 +14,7 @@ mod ui;
 struct Cli {
     #[arg(
         long,
-        help = "Theme: latte, frappe, macchiato, mocha, dracula, nord, github-dark"
+        help = "Theme: latte, frappe, macchiato, mocha, dracula, nord, github-dark, fjord, nordlys, ravn, skumring"
     )]
     theme: Option<String>,
     #[arg(long, help = "Refresh interval in milliseconds")]

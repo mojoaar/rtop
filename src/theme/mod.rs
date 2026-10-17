@@ -36,7 +36,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_returns_seven_themes() {
-        assert_eq!(all().len(), 7);
+    fn all_returns_eleven_themes() {
+        assert_eq!(all().len(), 11);
     }
 }

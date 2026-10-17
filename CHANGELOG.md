@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Four themes from the author's OpenCode setup: `fjord`, `nordlys`, `ravn`,
+  and `skumring` (dark variants).
+
 ### Fixed
 - Process CPU time shows `n/a` when macOS does not expose it (root-owned
   processes such as WindowServer); Linux now reports real CPU time instead of
