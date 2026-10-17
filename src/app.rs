@@ -625,7 +625,10 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
             Action::ToggleHelp => app.show_help = true,
             Action::ToggleZoom => app.fullscreen = !app.fullscreen,
             Action::ToggleNetDetail => app.net_detail = !app.net_detail,
-            Action::ToggleFreeze => app.frozen = !app.frozen,
+            Action::ToggleFreeze => {
+                app.frozen = !app.frozen;
+                let _ = cmd_tx.send(Command::SetPaused(app.frozen));
+            }
             Action::OpenSettings => app.show_settings = true,
             Action::FilterToggle => app.filtering = true,
             Action::Click(col, row) => app.click(col, row),
