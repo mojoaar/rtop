@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-10-17
+
 ### Added
 - Four themes from the author's OpenCode setup: `fjord`, `nordlys`, `ravn`,
   and `skumring` (dark variants).
