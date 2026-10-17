@@ -93,6 +93,50 @@ pub fn render(frame: &mut Frame, ctx: &RenderContext<'_>) -> Rect {
         frame.render_widget(bg, area);
     }
 
+    let draw_popups = |frame: &mut ratatui::Frame| {
+        if let Some(p) = detail {
+            popups::render_detail(frame, area, p, proc_history.get(&p.pid), theme);
+        }
+        if show_help {
+            popups::render_help(frame, area, theme);
+        }
+        if show_settings {
+            popups::render_settings(
+                frame,
+                area,
+                theme,
+                &SettingsView {
+                    index: settings_index,
+                    interval_ms,
+                    transparent,
+                    show_time,
+                    show_uptime,
+                    show_labels,
+                    sort_key,
+                    sort_dir,
+                    wan_enabled,
+                    settings_editing,
+                    wan_url,
+                    wan_url_edit,
+                },
+            );
+        }
+        if show_signal {
+            popups::render_signal(
+                frame,
+                area,
+                theme,
+                signal_index,
+                selected
+                    .and_then(|i| order.get(i))
+                    .and_then(|&idx| processes.get(idx)),
+            );
+        }
+        if net_detail {
+            popups::render_net_detail(frame, area, theme, &snapshot.network);
+        }
+    };
+
     if fullscreen {
         let [proc_area, help_area] =
             Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
@@ -137,47 +181,7 @@ pub fn render(frame: &mut Frame, ctx: &RenderContext<'_>) -> Rect {
             Paragraph::new(footer_text).style(Style::default().fg(footer_color)),
             help_area,
         );
-        if let Some(p) = detail {
-            popups::render_detail(frame, area, p, proc_history.get(&p.pid), theme);
-        }
-        if show_help {
-            popups::render_help(frame, area, theme);
-        }
-        if show_settings {
-            popups::render_settings(
-                frame,
-                area,
-                theme,
-                &SettingsView {
-                    index: settings_index,
-                    interval_ms,
-                    transparent,
-                    show_time,
-                    show_uptime,
-                    show_labels,
-                    sort_key,
-                    sort_dir,
-                    wan_enabled,
-                    settings_editing,
-                    wan_url,
-                    wan_url_edit,
-                },
-            );
-        }
-        if show_signal {
-            popups::render_signal(
-                frame,
-                area,
-                theme,
-                signal_index,
-                selected
-                    .and_then(|i| order.get(i))
-                    .and_then(|&idx| processes.get(idx)),
-            );
-        }
-        if net_detail {
-            popups::render_net_detail(frame, area, theme, &snapshot.network);
-        }
+        draw_popups(frame);
         return proc_rect;
     }
 
@@ -317,47 +321,7 @@ pub fn render(frame: &mut Frame, ctx: &RenderContext<'_>) -> Rect {
         clock_area,
     );
 
-    if let Some(p) = detail {
-        popups::render_detail(frame, area, p, proc_history.get(&p.pid), theme);
-    }
-    if show_help {
-        popups::render_help(frame, area, theme);
-    }
-    if show_settings {
-        popups::render_settings(
-            frame,
-            area,
-            theme,
-            &SettingsView {
-                index: settings_index,
-                interval_ms,
-                transparent,
-                show_time,
-                show_uptime,
-                show_labels,
-                sort_key,
-                sort_dir,
-                wan_enabled,
-                settings_editing,
-                wan_url,
-                wan_url_edit,
-            },
-        );
-    }
-    if show_signal {
-        popups::render_signal(
-            frame,
-            area,
-            theme,
-            signal_index,
-            selected
-                .and_then(|i| order.get(i))
-                .and_then(|&idx| processes.get(idx)),
-        );
-    }
-    if net_detail {
-        popups::render_net_detail(frame, area, theme, &snapshot.network);
-    }
+    draw_popups(frame);
     proc_rect
 }
 
