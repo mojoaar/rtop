@@ -213,13 +213,17 @@ pub fn render(
                 .threads
                 .map(|n| n.to_string())
                 .unwrap_or_else(|| "—".to_string());
+            let (cpu, cpu_time) = match p.cpu_time {
+                Some(t) => (format!("{:.1}", p.cpu_usage), format_duration_secs(t)),
+                None => ("n/a".to_string(), "n/a".to_string()),
+            };
             let cells = vec![
                 Cell::from(p.pid.to_string()),
                 Cell::from(p.user.clone()),
                 Cell::from(p.name.clone()),
-                Cell::from(format!("{:.1}", p.cpu_usage)),
+                Cell::from(cpu),
                 Cell::from(human_bytes(p.memory_bytes)),
-                Cell::from(format_duration_secs(p.cpu_time)),
+                Cell::from(cpu_time),
                 Cell::from(threads),
             ];
             let mut row = Row::new(cells);
@@ -255,7 +259,7 @@ mod tests {
             memory_bytes: mem,
             status: "Running".into(),
             user: "root".into(),
-            cpu_time: 0,
+            cpu_time: Some(0),
             threads: Some(1),
         }
     }

@@ -524,6 +524,27 @@ mod tests {
     }
 
     #[test]
+    fn unreadable_cpu_time_renders_na() {
+        let snap = Snapshot {
+            processes: vec![ProcessInfo {
+                pid: 1,
+                name: "windowserver".into(),
+                cpu_time: None,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let backend = TestBackend::new(120, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| draw_list(f, &snap, &theme(), &history(), &[0usize], false))
+            .unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("n/a"));
+    }
+
+    #[test]
     fn renders_filtered_list_not_full_snapshot() {
         let snap = Snapshot {
             processes: vec![

@@ -27,7 +27,7 @@ pub struct SysinfoProvider {
     cached_gpu: Option<GpuInfo>,
     cached_fans: Vec<FanInfo>,
     cached_battery: Option<BatteryInfo>,
-    proc_stats_cache: HashMap<u32, (u64, Option<usize>)>,
+    proc_stats_cache: HashMap<u32, (Option<u64>, Option<usize>)>,
 }
 
 impl SysinfoProvider {
@@ -192,23 +192,31 @@ impl MetricsProvider for SysinfoProvider {
                 .unwrap_or_default();
             #[cfg(target_os = "macos")]
             let (cpu_time, threads) = {
-                let fallback = || (p.run_time(), p.tasks().map(|t| t.len()));
                 if slow {
-                    let cached = crate::platform::cpu_time::process_stats(pid.as_u32())
-                        .map(|s| (s.cpu_time_secs, (s.threads > 0).then_some(s.threads)));
-                    if let Some(c) = cached {
-                        self.proc_stats_cache.insert(pid.as_u32(), c);
+                    match crate::platform::cpu_time::process_stats(pid.as_u32()) {
+                        Some(s) => {
+                            let stats =
+                                (Some(s.cpu_time_secs), (s.threads > 0).then_some(s.threads));
+                            self.proc_stats_cache.insert(pid.as_u32(), stats);
+                            stats
+                        }
+                        None => {
+                            self.proc_stats_cache.remove(&pid.as_u32());
+                            (None, None)
+                        }
                     }
-                    cached.unwrap_or_else(fallback)
                 } else {
                     self.proc_stats_cache
                         .get(&pid.as_u32())
                         .copied()
-                        .unwrap_or_else(fallback)
+                        .unwrap_or((None, None))
                 }
             };
             #[cfg(not(target_os = "macos"))]
-            let (cpu_time, threads) = (p.run_time(), p.tasks().map(|t| t.len()));
+            let (cpu_time, threads) = (
+                Some(p.accumulated_cpu_time() / 1000),
+                p.tasks().map(|t| t.len()),
+            );
             processes.push(ProcessInfo {
                 pid: pid.as_u32(),
                 name: p.name().to_string_lossy().to_string(),

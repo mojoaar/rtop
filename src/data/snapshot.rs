@@ -56,7 +56,8 @@ pub struct ProcessInfo {
     pub memory_bytes: u64,
     pub status: String,
     pub user: String,
-    pub cpu_time: u64,
+    /// Total CPU time; `None` when the OS does not let us read it.
+    pub cpu_time: Option<u64>,
     pub threads: Option<usize>,
 }
 

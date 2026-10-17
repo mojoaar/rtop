@@ -64,13 +64,22 @@ pub(crate) fn render_detail(
         Line::from(format!("PID: {}", p.pid)),
         Line::from(format!("Name: {}", p.name)),
         Line::from(format!("User: {}", p.user)),
-        Line::from(format!("CPU: {:.1}%", p.cpu_usage)),
+        Line::from(if p.cpu_time.is_some() {
+            format!("CPU: {:.1}%", p.cpu_usage)
+        } else {
+            "CPU: n/a".to_string()
+        }),
         Line::from(format!(
             "Memory: {} ({} KB)",
             human_bytes(p.memory_bytes),
             p.memory_bytes / 1024
         )),
-        Line::from(format!("CPU time: {}", format_duration_secs(p.cpu_time))),
+        Line::from(format!(
+            "CPU time: {}",
+            p.cpu_time
+                .map(format_duration_secs)
+                .unwrap_or_else(|| "n/a".to_string())
+        )),
         Line::from(format!(
             "Threads: {}",
             p.threads
