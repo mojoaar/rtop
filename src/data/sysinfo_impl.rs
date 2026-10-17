@@ -137,6 +137,7 @@ impl MetricsProvider for SysinfoProvider {
         let mut net_total_transmitted: u64 = 0;
         let network: Vec<NetRate> = networks
             .iter()
+            .filter(|(name, _)| is_relevant_interface(name))
             .map(|(name, data)| {
                 let rx = diff_value(&mut self.prev_net_rx, name, data.total_received(), elapsed);
                 let tx = diff_value(

@@ -1,5 +1,10 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+const PRIVATE_EVERY: Duration = Duration::from_secs(30);
+const WAN_EVERY: Duration = Duration::from_secs(300);
+/// Anything longer is not an IP address; avoids holding a whole error page.
+const MAX_WAN_BODY: usize = 256;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IpState {
@@ -18,12 +23,10 @@ pub enum IpCmd {
 }
 
 pub fn clean_ip(raw: &str) -> Option<String> {
-    let s = raw.trim().trim_matches('"').trim_matches('\'').trim();
-    if s.is_empty() {
-        None
-    } else {
-        Some(s.to_string())
-    }
+    raw.split(|c: char| !(c.is_ascii_hexdigit() || c == '.' || c == ':'))
+        .map(|t| t.trim_matches(|c| c == ':' || c == '.'))
+        .find_map(|t| t.parse::<std::net::IpAddr>().ok())
+        .map(|ip| ip.to_string())
 }
 
 pub fn private_ip() -> Option<String> {
@@ -40,10 +43,10 @@ pub fn fetch_wan(url: &str) -> Option<String> {
         return None;
     }
     let out = std::process::Command::new("curl")
-        .args(["-s", "--max-time", "5", "--", url])
+        .args(["-sf", "--max-time", "5", "--", url])
         .output()
         .ok()?;
-    if !out.status.success() {
+    if !out.status.success() || out.stdout.len() > MAX_WAN_BODY {
         return None;
     }
     clean_ip(std::str::from_utf8(&out.stdout).ok()?)
@@ -61,13 +64,14 @@ pub fn spawn_ip_monitor(config: IpConfig) -> (Sender<IpCmd>, Receiver<IpState>) 
         } else {
             None
         };
+        let mut last_wan = Instant::now();
         let _ = state_tx.send(IpState {
             private: private.clone(),
             wan: wan.clone(),
         });
 
         loop {
-            match cmd_rx.recv_timeout(Duration::from_secs(300)) {
+            match cmd_rx.recv_timeout(PRIVATE_EVERY) {
                 Ok(IpCmd::Update(new_cfg)) => {
                     cfg = new_cfg;
                     private = private_ip();
@@ -76,25 +80,21 @@ pub fn spawn_ip_monitor(config: IpConfig) -> (Sender<IpCmd>, Receiver<IpState>) 
                     } else {
                         None
                     };
-                    let _ = state_tx.send(IpState {
-                        private: private.clone(),
-                        wan: wan.clone(),
-                    });
+                    last_wan = Instant::now();
                 }
                 Err(RecvTimeoutError::Timeout) => {
                     private = private_ip();
-                    wan = if cfg.enabled {
-                        fetch_wan(&cfg.url)
-                    } else {
-                        None
-                    };
-                    let _ = state_tx.send(IpState {
-                        private: private.clone(),
-                        wan: wan.clone(),
-                    });
+                    if cfg.enabled && last_wan.elapsed() >= WAN_EVERY {
+                        wan = fetch_wan(&cfg.url);
+                        last_wan = Instant::now();
+                    }
                 }
                 Err(RecvTimeoutError::Disconnected) => break,
             }
+            let _ = state_tx.send(IpState {
+                private: private.clone(),
+                wan: wan.clone(),
+            });
         }
     });
 
@@ -119,6 +119,22 @@ mod tests {
         assert_eq!(clean_ip("   "), None);
         assert_eq!(clean_ip("\"\""), None);
         assert_eq!(clean_ip("\n"), None);
+    }
+
+    #[test]
+    fn clean_ip_extracts_from_wrapping_text() {
+        assert_eq!(clean_ip("{\"ip\":\"1.2.3.4\"}").as_deref(), Some("1.2.3.4"));
+        assert_eq!(
+            clean_ip("your ip is 2001:db8::1 today").as_deref(),
+            Some("2001:db8::1")
+        );
+        assert_eq!(clean_ip("1.2.3.4.").as_deref(), Some("1.2.3.4"));
+    }
+
+    #[test]
+    fn clean_ip_rejects_control_chars_and_junk() {
+        assert_eq!(clean_ip("\u{1b}]0;pwned\u{7}"), None);
+        assert_eq!(clean_ip("<html>no address here</html>"), None);
     }
 
     #[test]

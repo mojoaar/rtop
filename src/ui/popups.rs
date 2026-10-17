@@ -2,7 +2,6 @@ use crate::data::format::{format_duration_secs, human_bytes, human_rate};
 use crate::data::history::ProcessHistory;
 use crate::data::snapshot::{NetRate, ProcessInfo};
 use crate::theme::Theme;
-use crate::ui::widgets;
 use crate::ui::widgets::processes::{SortDir, SortKey};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -452,7 +451,7 @@ pub(crate) fn render_net_detail(frame: &mut Frame, area: Rect, theme: &Theme, ne
     const RATE_W: usize = 15;
     let mut lines: Vec<Line> = network
         .iter()
-        .filter(|n| widgets::network::is_relevant_interface(&n.name))
+        .filter(|n| crate::data::snapshot::is_relevant_interface(&n.name))
         .map(|n| {
             Line::from(vec![
                 ratatui::text::Span::styled(

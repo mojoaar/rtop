@@ -90,3 +90,51 @@ pub struct FanInfo {
     pub label: String,
     pub rpm: u32,
 }
+
+/// Loopback, tunnels, and virtual bridges only add noise; VPN traffic is
+/// already counted on the physical link.
+pub fn is_relevant_interface(name: &str) -> bool {
+    let n = name.to_lowercase();
+    ![
+        "lo", "gif", "stf", "awdl", "llw", "anpi", "bridge", "br", "utun", "docker", "veth",
+        "virbr", "tun", "tap", "wg", "vmnet", "vnic",
+    ]
+    .iter()
+    .any(|p| n.starts_with(p))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_relevant_interface;
+
+    #[test]
+    fn filters_virtual_and_loopback_interfaces() {
+        assert!(!is_relevant_interface("lo0"));
+        assert!(!is_relevant_interface("lo"));
+        assert!(!is_relevant_interface("utun3"));
+        assert!(!is_relevant_interface("awdl0"));
+        assert!(!is_relevant_interface("llw0"));
+        assert!(!is_relevant_interface("anpi1"));
+        assert!(!is_relevant_interface("gif0"));
+        assert!(!is_relevant_interface("stf0"));
+        assert!(!is_relevant_interface("bridge0"));
+        assert!(!is_relevant_interface("docker0"));
+        assert!(!is_relevant_interface("veth1"));
+        assert!(!is_relevant_interface("br-1234"));
+        assert!(!is_relevant_interface("tun0"));
+        assert!(!is_relevant_interface("tap0"));
+        assert!(!is_relevant_interface("wg0"));
+        assert!(!is_relevant_interface("vmnet3"));
+        assert!(!is_relevant_interface("virbr0"));
+    }
+
+    #[test]
+    fn keeps_physical_interfaces() {
+        assert!(is_relevant_interface("en0"));
+        assert!(is_relevant_interface("en1"));
+        assert!(is_relevant_interface("eth0"));
+        assert!(is_relevant_interface("wlan0"));
+        assert!(is_relevant_interface("enp3s0"));
+        assert!(is_relevant_interface("wlp2s0"));
+    }
+}
