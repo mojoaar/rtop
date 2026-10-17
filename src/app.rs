@@ -258,18 +258,27 @@ impl App {
         }
     }
 
+    fn selected_pid(&self) -> Option<u32> {
+        self.proc_at(self.selected?).map(|p| p.pid)
+    }
+
     fn refresh_display(&mut self) {
+        let keep = self.selected_pid();
+        self.rebuild_display(keep);
+    }
+
+    fn rebuild_display(&mut self, keep: Option<u32>) {
         let procs = &self.snapshot.processes;
         let mut idx: Vec<usize> = (0..procs.len())
             .filter(|&i| processes::matches_filter(&self.filter, &procs[i]))
             .collect();
         idx.sort_by(|&a, &b| processes::cmp(&procs[a], &procs[b], self.sort_key, self.sort_dir));
         self.display = idx;
-        if let Some(i) = self.selected {
-            if i >= self.display.len() {
-                self.selected = None;
-            }
-        }
+        self.selected = keep.and_then(|pid| {
+            self.display
+                .iter()
+                .position(|&i| self.snapshot.processes[i].pid == pid)
+        });
         let max_scroll = self.display.len().saturating_sub(1);
         if self.scroll > max_scroll {
             self.scroll = max_scroll;
@@ -448,6 +457,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 while rx.try_recv().is_ok() {}
                 while app.ip_rx.try_recv().is_ok() {}
             } else {
+                let keep = app.selected_pid();
                 let mut updated = false;
                 while let Ok(snap) = rx.try_recv() {
                     app.snapshot = snap;
@@ -461,7 +471,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                     updated = true;
                 }
                 if updated {
-                    app.refresh_display();
+                    app.rebuild_display(keep);
                     if let Some(d) = &app.detail {
                         if let Some(live) = app
                             .display
@@ -705,6 +715,56 @@ mod tests {
         app.selected = Some(2);
         app.move_down();
         assert_eq!(app.selected, Some(2));
+    }
+
+    #[test]
+    fn selection_follows_process_across_resort() {
+        let mut app = App::new(&Config::default());
+        app.snapshot.processes = vec![
+            ProcessInfo {
+                pid: 1,
+                cpu_usage: 10.0,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 2,
+                cpu_usage: 50.0,
+                ..Default::default()
+            },
+        ];
+        app.sort_key = SortKey::Cpu;
+        app.sort_dir = SortDir::Desc;
+        app.refresh_display();
+        app.selected = Some(1);
+        assert_eq!(app.selected_pid(), Some(1));
+
+        app.snapshot.processes[0].cpu_usage = 90.0;
+        app.refresh_display();
+        assert_eq!(app.selected, Some(0));
+        assert_eq!(app.selected_pid(), Some(1));
+    }
+
+    #[test]
+    fn selection_clears_when_process_disappears() {
+        let mut app = App::new(&Config::default());
+        app.snapshot.processes = vec![
+            ProcessInfo {
+                pid: 1,
+                cpu_usage: 10.0,
+                ..Default::default()
+            },
+            ProcessInfo {
+                pid: 2,
+                cpu_usage: 50.0,
+                ..Default::default()
+            },
+        ];
+        app.refresh_display();
+        app.selected = Some(0);
+        assert_eq!(app.selected_pid(), Some(2));
+        app.snapshot.processes.retain(|p| p.pid != 2);
+        app.refresh_display();
+        assert_eq!(app.selected, None);
     }
 
     #[test]
