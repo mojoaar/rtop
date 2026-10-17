@@ -9,21 +9,23 @@ use std::time::Instant;
 use sysinfo::{Components, Disks, Networks, System, Users};
 
 /// Refresh slow-changing hardware (users, temps, GPU, fans, battery) and
-/// per-process CPU-time syscalls every `SLOW_EVERY` samples. At the default
-/// 500 ms interval this is roughly every 2 seconds.
-const SLOW_EVERY: u64 = 4;
+/// per-process CPU-time syscalls at most this often. The sampler may run
+/// anywhere from 50 ms to 5 s apart, so this is time based.
+const SLOW_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 
 pub struct SysinfoProvider {
     system: System,
     users: Users,
     last: Instant,
+    last_slow: Option<Instant>,
+    networks: Networks,
+    disks: Disks,
     prev_net_rx: HashMap<String, u64>,
     prev_net_tx: HashMap<String, u64>,
     prev_disk_read: HashMap<String, u64>,
     prev_disk_write: HashMap<String, u64>,
     gpu: Box<dyn GpuStats + Send>,
     fan: Box<dyn FanStats + Send>,
-    tick: u64,
     cached_components: Vec<ComponentInfo>,
     cached_gpu: Option<GpuInfo>,
     cached_fans: Vec<FanInfo>,
@@ -37,13 +39,15 @@ impl SysinfoProvider {
             system: System::new_all(),
             users: Users::new_with_refreshed_list(),
             last: Instant::now(),
+            last_slow: None,
+            networks: Networks::new_with_refreshed_list(),
+            disks: Disks::new_with_refreshed_list(),
             prev_net_rx: Default::default(),
             prev_net_tx: Default::default(),
             prev_disk_read: Default::default(),
             prev_disk_write: Default::default(),
             gpu: crate::platform::build_gpu(),
             fan: crate::platform::build_fan(),
-            tick: 0,
             cached_components: Vec::new(),
             cached_gpu: None,
             cached_fans: Vec::new(),
@@ -78,8 +82,12 @@ impl MetricsProvider for SysinfoProvider {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last);
         self.last = now;
-        let slow = self.tick.is_multiple_of(SLOW_EVERY);
-        self.tick = self.tick.wrapping_add(1);
+        let slow = self
+            .last_slow
+            .is_none_or(|t| now.duration_since(t) >= SLOW_INTERVAL);
+        if slow {
+            self.last_slow = Some(now);
+        }
 
         self.system.refresh_cpu_all();
         self.system.refresh_memory();
@@ -95,8 +103,8 @@ impl MetricsProvider for SysinfoProvider {
                 .with_cmd(sysinfo::UpdateKind::OnlyIfNotSet),
         );
 
-        let networks = Networks::new_with_refreshed_list();
-        let disks = Disks::new_with_refreshed_list();
+        self.networks.refresh(true);
+        self.disks.refresh(true);
 
         if slow {
             self.users.refresh();
@@ -135,7 +143,8 @@ impl MetricsProvider for SysinfoProvider {
 
         let mut net_total_received: u64 = 0;
         let mut net_total_transmitted: u64 = 0;
-        let network: Vec<NetRate> = networks
+        let network: Vec<NetRate> = self
+            .networks
             .iter()
             .filter(|(name, _)| is_relevant_interface(name))
             .map(|(name, data)| {
@@ -157,7 +166,8 @@ impl MetricsProvider for SysinfoProvider {
             })
             .collect();
 
-        let disks_usage: Vec<DiskUsage> = disks
+        let disks_usage: Vec<DiskUsage> = self
+            .disks
             .iter()
             .map(|d| {
                 let key = d.mount_point().to_string_lossy().to_string();
@@ -240,6 +250,18 @@ impl MetricsProvider for SysinfoProvider {
         if slow {
             let alive: std::collections::HashSet<u32> = processes.iter().map(|p| p.pid).collect();
             self.proc_stats_cache.retain(|pid, _| alive.contains(pid));
+
+            let ifaces: std::collections::HashSet<&str> =
+                self.networks.keys().map(|name| name.as_str()).collect();
+            self.prev_net_rx.retain(|k, _| ifaces.contains(k.as_str()));
+            self.prev_net_tx.retain(|k, _| ifaces.contains(k.as_str()));
+
+            let mounts: std::collections::HashSet<&str> =
+                disks_usage.iter().map(|d| d.mount_point.as_str()).collect();
+            self.prev_disk_read
+                .retain(|k, _| mounts.contains(k.as_str()));
+            self.prev_disk_write
+                .retain(|k, _| mounts.contains(k.as_str()));
         }
 
         Snapshot {
