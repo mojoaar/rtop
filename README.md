@@ -3,7 +3,7 @@
 A beautiful terminal system monitor in the style of `top` and `bpytop`, written in
 Rust with [ratatui] + [crossterm]. It renders a live dashboard of CPU, memory,
 GPU, network, disk, battery & sensors, and a sortable process table — themed with
-a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
+a built-in set of [Catppuccin], Dracula, Nord, GitHub, and OpenCode palettes.
 
 [ratatui]: https://ratatui.rs
 [crossterm]: https://github.com/crossterm-rs/crossterm
@@ -15,13 +15,14 @@ a built-in set of [Catppuccin], Dracula, Nord, and GitHub palettes.
 ## Features
 
 - Live CPU (global + per-core), memory & swap, GPU, network I/O rates (with
-  private/WAN IP in the header), and disk usage
+  private/WAN IP in the header, virtual interfaces excluded), and disk usage
 - Battery status (with cycle count and health), temperature sensors, and fan
   speeds (where available)
 - Sortable, filterable process table with selection, mouse support, per-process
   details popup (with command line, CPU/memory history graphs), and process kill
-- Seven built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark) with runtime
-  cycling and optional transparent background
+- Eleven built-in themes (Catppuccin ×4, Dracula, Nord, GitHub Dark, plus
+  `fjord`, `nordlys`, `ravn`, `skumring` from OpenCode) with runtime cycling and
+  optional transparent background
 - Sparkline history for CPU, GPU, and network; per-core CPU load, model, and load average
 - Block-bar usage chart for memory; disk usage table (colored by fullness)
 - In-app settings menu to change refresh rate, theme, transparency, and WAN IP
@@ -44,7 +45,7 @@ Prebuilt binaries for Apple Silicon (`aarch64-apple-darwin`) and Intel
 tarball for your architecture, extract it, and put `rtop` on your `PATH`:
 
 ```sh
-tar -xzf rtop-v0.6.0-aarch64-apple-darwin.tar.gz
+tar -xzf rtop-v0.8.3-aarch64-apple-darwin.tar.gz
 sudo mv rtop /usr/local/bin/
 ```
 
@@ -69,7 +70,7 @@ Download the tarball for your variant, extract it, and put `rtop` on your
 `PATH`:
 
 ```sh
-tar -xzf rtop-v0.8.1-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf rtop-v0.8.3-x86_64-unknown-linux-gnu.tar.gz
 sudo install -m 755 rtop /usr/local/bin/rtop
 ```
 
@@ -100,7 +101,7 @@ rtop --theme macchiato --interval 500
 
 | Flag          | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `--theme`     | Theme: `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark` |
+| `--theme`     | Theme: `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark`, `fjord`, `nordlys`, `ravn`, `skumring` |
 | `--interval`  | Refresh interval in milliseconds               |
 
 ## Keybindings
@@ -131,12 +132,14 @@ along with the theme and settings.
 
 ## Themes
 
-`rtop` ships with seven built-in themes:
+`rtop` ships with eleven built-in themes:
 
 - `latte`, `frappe`, `macchiato`, `mocha` — Catppuccin
 - `dracula` — Dracula
 - `nord` — Nord
 - `github-dark` — GitHub
+- `fjord`, `nordlys`, `ravn`, `skumring` — dark variants of the author's
+  OpenCode themes
 
 Select one at startup with `--theme <name>`, or press `t` at any time to cycle
 through them. The chosen theme is persisted to the config file. Note that the
@@ -151,7 +154,7 @@ are persisted to the config file:
 | Setting     | Values                                            |
 | ----------- | ------------------------------------------------- |
 | Refresh     | `100`, `250`, `500`, `1000`, `2000`, `5000` ms    |
-| Theme       | `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark` |
+| Theme       | `latte`, `frappe`, `macchiato`, `mocha`, `dracula`, `nord`, `github-dark`, `fjord`, `nordlys`, `ravn`, `skumring` |
 | Transparent | `on` / `off` (terminal background vs theme bg)  |
 | Time        | `on` / `off` (show the clock in the footer)       |
 | Uptime      | `on` / `off` (show uptime in the footer)          |
@@ -179,7 +182,7 @@ Format:
 
 ```toml
 [theme]
-flavor = "mocha"        # latte | frappe | macchiato | mocha | dracula | nord | github-dark
+flavor = "mocha"        # latte | frappe | macchiato | mocha | dracula | nord | github-dark | fjord | nordlys | ravn | skumring
 
 [general]
 interval_ms = 500       # sampling + render tick, in milliseconds
@@ -212,6 +215,11 @@ behavior may vary.
 
 **macOS** is the reference platform and is fully supported, including GPU
 (IOKit `PerformanceStatistics`) and fan speed (SMC via `smc-lib`).
+
+macOS does not let an unprivileged app read CPU counters for root-owned
+processes (WindowServer, launchd, and other system daemons), so `rtop` shows
+`n/a` for their CPU% and CPU time instead of a misleading zero. `/bin/ps` can
+read them only because it runs setuid root.
 
 **Linux** supports GPU metrics through NVIDIA NVML or the DRM sysfs interface
 (AMD/Intel) and fan speed through hwmon. **Windows** supports CPU, memory,
