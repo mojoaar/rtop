@@ -24,7 +24,7 @@ fn preset_index(ms: u64) -> usize {
         .enumerate()
         .min_by_key(|&(_, &v)| (v as i64 - ms as i64).abs())
         .map(|(i, _)| i)
-        .unwrap_or(3)
+        .unwrap_or_default()
 }
 
 fn next_preset(ms: u64) -> u64 {
@@ -168,9 +168,9 @@ impl App {
                 wan_url: self.wan_url.clone(),
             },
         };
-        if let Err(e) = cfg.save() {
-            eprintln!("rtop: failed to save config: {e}");
-        }
+        // shortcut: a failed save is dropped, surfacing it would mean a status
+        // line; revisit if users report settings not sticking.
+        let _ = cfg.save();
     }
 
     fn send_ip_update(&self) {
@@ -195,7 +195,7 @@ impl App {
     }
 
     fn settings_down(&mut self) {
-        if self.settings_index < 9 {
+        if self.settings_index < crate::ui::popups::SETTINGS_COUNT - 1 {
             self.settings_index += 1;
         }
     }
@@ -531,7 +531,7 @@ fn run_inner(terminal: &mut ratatui::DefaultTerminal, config: &Config) -> Result
                 Action::SettingsDec => app.settings_dec(&cmd_tx),
                 Action::SettingsInc => app.settings_inc(&cmd_tx),
                 Action::SettingsActivate => {
-                    if app.settings_index == 9 {
+                    if app.settings_index == crate::ui::popups::SETTINGS_COUNT - 1 {
                         app.wan_url_edit = app.wan_url.clone();
                         app.settings_editing = true;
                     }

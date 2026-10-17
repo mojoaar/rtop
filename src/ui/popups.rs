@@ -68,11 +68,7 @@ pub(crate) fn render_detail(
         } else {
             "CPU: n/a".to_string()
         }),
-        Line::from(format!(
-            "Memory: {} ({} KB)",
-            human_bytes(p.memory_bytes),
-            p.memory_bytes / 1024
-        )),
+        Line::from(format!("Memory: {}", human_bytes(p.memory_bytes))),
         Line::from(format!(
             "CPU time: {}",
             p.cpu_time
@@ -270,6 +266,8 @@ pub(crate) struct SettingsView<'a> {
     pub(crate) wan_url_edit: &'a str,
 }
 
+pub(crate) const SETTINGS_COUNT: usize = 10;
+
 pub(crate) fn render_settings(
     frame: &mut Frame,
     area: Rect,
@@ -335,6 +333,7 @@ pub(crate) fn render_settings(
         ),
         ("WAN URL", url_value),
     ];
+    debug_assert_eq!(rows.len(), SETTINGS_COUNT);
 
     let mut lines: Vec<Line> = rows
         .iter()
