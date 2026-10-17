@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Process CPU time shows `n/a` when macOS does not expose it (root-owned
+  processes such as WindowServer); Linux now reports real CPU time instead of
+  process age.
+- Control characters in process names and command lines are stripped before
+  they reach the terminal.
+- Virtual interfaces (loopback, VPN tunnels, bridges, container links) no
+  longer inflate network totals; the dashboard and the `i` popup agree.
+- The WAN IP response is parsed as an IP address and size-capped instead of
+  being displayed verbatim.
+- The selected process stays selected when the list re-sorts.
+- Pausing stops sampling instead of burning CPU and queueing snapshots.
+- Slow hardware (temps, GPU, fans, battery, users) refreshes every two seconds
+  regardless of the sampling interval.
+- Byte counters for removed interfaces and mounts are dropped.
+
+### Changed
+- Per-process CPU and memory history is kept only for the selected process.
+- The settings row count comes from one constant.
+
 ## [0.8.2] - 2026-09-08
 
 ### Added
