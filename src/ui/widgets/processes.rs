@@ -117,23 +117,9 @@ pub fn matches_filter(query: &str, p: &ProcessInfo) -> bool {
         return true;
     }
     let q = query.to_lowercase();
-    contains_ci(&p.name, &q) || contains_ci(&p.user, &q) || p.pid.to_string().contains(&q)
-}
-
-fn contains_ci(haystack: &str, needle: &str) -> bool {
-    if needle.is_empty() {
-        return true;
-    }
-    let hay: Vec<char> = haystack.chars().collect();
-    let ndl: Vec<char> = needle.chars().collect();
-    if ndl.len() > hay.len() {
-        return false;
-    }
-    hay.windows(ndl.len()).any(|w| {
-        w.iter()
-            .zip(&ndl)
-            .all(|(a, b)| a.to_lowercase().eq(b.to_lowercase()))
-    })
+    p.name.to_lowercase().contains(&q)
+        || p.user.to_lowercase().contains(&q)
+        || p.pid.to_string().contains(&q)
 }
 
 fn header_label(label: &str, key: Option<SortKey>, active: SortKey, dir: SortDir) -> String {
@@ -302,15 +288,6 @@ mod tests {
             cmp(&a, &b, SortKey::Name, SortDir::Desc),
             std::cmp::Ordering::Greater
         );
-    }
-
-    #[test]
-    fn contains_ci_substring() {
-        assert!(contains_ci("Firefox", "fire"));
-        assert!(contains_ci("Firefox", "FOX"));
-        assert!(!contains_ci("Firefox", "xyz"));
-        assert!(!contains_ci("ab", "abc"));
-        assert!(contains_ci("ab", ""));
     }
 
     #[test]
